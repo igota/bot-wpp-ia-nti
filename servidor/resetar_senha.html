@@ -1,0 +1,703 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <title>Resetar Senha - GLPI</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+        }
+        
+        .container {
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            padding: 40px;
+            max-width: 500px;
+            width: 100%;
+        }
+        
+        h1 {
+            color: #333;
+            margin-bottom: 10px;
+            text-align: center;
+        }
+        
+        .subtitle {
+            text-align: center;
+            color: #666;
+            margin-bottom: 30px;
+            font-size: 14px;
+        }
+        
+        .info-box {
+            background: #f0f4ff;
+            padding: 15px;
+            border-radius: 10px;
+            margin-bottom: 25px;
+        }
+        
+        .info-box p {
+            margin: 5px 0;
+            color: #555;
+        }
+        
+        .info-box strong {
+            color: #667eea;
+        }
+        
+        .form-group {
+            margin-bottom: 20px;
+            position: relative;
+        }
+        
+        label {
+            display: block;
+            margin-bottom: 8px;
+            color: #333;
+            font-weight: 500;
+        }
+        
+        .password-wrapper {
+            position: relative;
+            display: flex;
+            align-items: center;
+        }
+        
+        .password-wrapper input {
+            width: 100%;
+            padding: 12px 35px 12px 15px;
+            border: 2px solid #e0e0e0;
+            border-radius: 10px;
+            font-size: 16px;
+            transition: border-color 0.2s;
+            flex: 1;
+        }
+        
+        .password-wrapper input:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+        
+        .toggle-password {
+            position: absolute;
+            right: 12px;
+            cursor: pointer;
+            font-size: 16px;
+            user-select: none;
+            background: white;
+            color: #999;
+            line-height: 1;
+        }
+        
+        .toggle-password:hover {
+            color: #667eea;
+        }
+        
+        .requirements {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+        }
+        
+        .requirements h4 {
+            margin-bottom: 10px;
+            color: #555;
+            font-size: 14px;
+        }
+        
+        .requirement {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 5px 0;
+            font-size: 13px;
+            color: #888;
+        }
+        
+        .requirement.valid {
+            color: #4caf50;
+        }
+        
+        .requirement::before {
+            content: "○";
+            font-size: 16px;
+        }
+        
+        .requirement.valid::before {
+            content: "✓";
+            font-weight: bold;
+        }
+        
+        button {
+            width: 100%;
+            padding: 14px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            border-radius: 10px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: opacity 0.2s;
+        }
+        
+        button:hover {
+            opacity: 0.9;
+        }
+        
+        button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+        
+        /* Modal styles */
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0,0,0,0.5);
+            backdrop-filter: blur(3px);
+        }
+        
+        .modal-content {
+            background-color: white;
+            margin: 15% auto;
+            padding: 0;
+            border-radius: 20px;
+            width: 90%;
+            max-width: 400px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+        }
+        
+        .modal-header {
+            padding: 20px 20px 0 20px;
+            text-align: center;
+        }
+        
+        .modal-header .icon {
+            font-size: 48px;
+            margin-bottom: 10px;
+        }
+        
+        .modal-header h3 {
+            color: #333;
+            font-size: 20px;
+        }
+        
+        .modal-body {
+            padding: 20px;
+            text-align: center;
+            color: #555;
+            line-height: 1.5;
+        }
+        
+        .modal-body ul {
+            text-align: left;
+            padding-left: 20px;
+            margin-top: 10px;
+        }
+        
+        .modal-body li {
+            margin: 5px 0;
+        }
+        
+        .modal-footer {
+            padding: 0 20px 20px 20px;
+            display: flex;
+            justify-content: center;
+            gap: 10px;
+        }
+        
+        .modal-btn {
+            padding: 10px 30px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            border-radius: 10px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+        }
+        
+        .modal-btn-secondary {
+            background: #6c757d;
+        }
+        
+        .modal-error .icon {
+            color: #dc3545;
+        }
+        
+        .modal-error h3 {
+            color: #dc3545;
+        }
+        
+        .modal-success .icon {
+            color: #28a745;
+        }
+        
+        .modal-success h3 {
+            color: #28a745;
+        }
+        
+        .loading {
+            display: none;
+            text-align: center;
+            margin-top: 20px;
+            color: #667eea;
+        }
+        
+        .spinner {
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid #667eea;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 10px;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
+        .countdown {
+            font-size: 24px;
+            font-weight: bold;
+            color: #667eea;
+            margin: 10px 0;
+        }
+        
+        .glpi-link {
+            color: #667eea;
+            text-decoration: none;
+            font-weight: bold;
+        }
+        
+        .glpi-link:hover {
+            text-decoration: underline;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔐 Resetar Senha</h1>
+        <div class="subtitle">Sistema GLPI</div>
+        
+        <div class="info-box" id="infoBox">
+            <p>👤 <strong>Nome:</strong> <span id="userName">-</span></p>
+            <p>🔑 <strong>Usuário:</strong> <span id="userLogin">-</span></p>
+            <p>💻 <strong>Sistema:</strong> GLPI</p>
+        </div>
+        
+        <div class="form-group">
+            <label for="novaSenha">🔒 Nova Senha</label>
+            <div class="password-wrapper">
+                <input type="password" id="novaSenha" placeholder="Digite sua nova senha" autocomplete="off">
+                <span class="toggle-password" onclick="togglePassword('novaSenha', this)">👁</span>
+            </div>
+        </div>
+        
+        <div class="form-group">
+            <label for="confirmarSenha">✅ Confirmar Senha</label>
+            <div class="password-wrapper">
+                <input type="password" id="confirmarSenha" placeholder="Confirme sua nova senha" autocomplete="off">
+                <span class="toggle-password" onclick="togglePassword('confirmarSenha', this)">👁</span>
+            </div>
+        </div>
+        
+        <div class="requirements">
+            <h4>📋 Requisitos da senha:</h4>
+            <div class="requirement" id="reqLength">❌ Mínimo de 8 caracteres</div>
+            <div class="requirement" id="reqLower">❌ Pelo menos 1 letra minúscula</div>
+            <div class="requirement" id="reqUpper">❌ Pelo menos 1 letra maiúscula</div>
+            <div class="requirement" id="reqNumber">❌ Pelo menos 1 número</div>
+            <div class="requirement" id="reqSpecial">❌ Pelo menos 1 caractere especial</div>
+            <div class="requirement" id="reqMatch">❌ As senhas devem coincidir</div>
+        </div>
+        
+        <button id="btnConfirmar">Confirmar Reset de Senha</button>
+        
+        <div class="loading" id="loading">
+            <div class="spinner"></div>
+            <p>Resetando senha...</p>
+        </div>
+    </div>
+    
+    <!-- Modal -->
+    <div id="modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header" id="modalHeader">
+                <div class="icon" id="modalIcon">⚠️</div>
+                <h3 id="modalTitle">Atenção</h3>
+            </div>
+            <div class="modal-body" id="modalMessage">
+                Mensagem de aviso
+            </div>
+            <div class="modal-footer" id="modalFooter">
+                <button class="modal-btn" onclick="fecharModal()">OK</button>
+            </div>
+        </div>
+    </div>
+<script>
+    // Variáveis de controle do modal
+    let modalCallback = null;
+    let countdownInterval = null;
+    
+    // Obtém o token da URL (único parâmetro necessário)
+    const urlParams = new URLSearchParams(window.location.search);
+    const token = urlParams.get('token');
+    const GLPI_URL = 'https://sistemasnti.isgh.org.br/glpi/';
+    
+    // VALIDAÇÃO INICIAL DO TOKEN
+    if (!token) {
+        // Token não encontrado na URL
+        document.body.innerHTML = `
+            <div style="font-family: Arial; text-align: center; padding: 50px;">
+                <h1 style="color: #fff;">❌ LINK INVÁLIDO</h1>
+                <p>Token de segurança não encontrado na URL.</p>
+                <p>Por favor, solicite um novo link de recuperação de senha.</p>
+                <button onclick="window.location.href='${GLPI_URL}'" 
+                        style="margin-top: 20px; padding: 10px 20px; background: #667eea; color: white; border: none; border-radius: 5px; cursor: pointer;">
+                    Ir para o GLPI
+                </button>
+            </div>
+        `;
+        throw new Error("Token não encontrado na URL");
+    }
+    
+    // Função para buscar dados do usuário via token (antes de mostrar a página)
+    let userLogin = '';
+    let userName = '';
+    
+    async function carregarDadosDoToken() {
+        try {
+            const response = await fetch('/api/validar-token', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Bypass-Tunnel-Reminder': 'true'
+                },
+                body: JSON.stringify({ token: token })
+            });
+            
+            const result = await response.json();
+            
+            if (!result.success) {
+                // Token inválido ou expirado
+                document.body.innerHTML = `
+                    <div style="font-family: Arial; text-align: center; padding: 50px;">
+                        <h1 style="color: #fff;">❌ LINK INVÁLIDO</h1>
+                        <p>${result.error || 'Token inválido ou expirado.'}</p>
+                        <p>Por favor, solicite um novo link de recuperação de senha.</p>
+                        <button onclick="window.location.href='${GLPI_URL}'" 
+                                style="margin-top: 20px; padding: 10px 20px; background: #667eea; color: white; border: none; border-radius: 5px; cursor: pointer;">
+                            Ir para o GLPI
+                        </button>
+                    </div>
+                `;
+                throw new Error(result.error);
+            }
+            
+            // Armazena os dados do usuário
+            userLogin = result.login;
+            userName = result.nome;
+            
+            // Exibe as informações do usuário
+            document.getElementById('userName').textContent = userName;
+            document.getElementById('userLogin').textContent = userLogin;
+            
+        } catch (error) {
+            console.error('❌ Erro ao validar token:', error);
+            // Erro já tratado com o body substituído
+        }
+    }
+    
+    // Função para toggle de senha (mostrar/ocultar)
+    function togglePassword(inputId, element) {
+        const input = document.getElementById(inputId);
+        if (input.type === 'password') {
+            input.type = 'text';
+            element.innerHTML = '<i class="fas fa-eye-slash"></i>';
+        } else {
+            input.type = 'password';
+            element.innerHTML = '<i class="fas fa-eye"></i>';
+        }
+    }
+    
+    // Função para exibir modal
+    function mostrarModal(tipo, titulo, mensagem, callback, showCountdown = false, redirectUrl = null) {
+        const modal = document.getElementById('modal');
+        const header = document.getElementById('modalHeader');
+        const icon = document.getElementById('modalIcon');
+        const title = document.getElementById('modalTitle');
+        const message = document.getElementById('modalMessage');
+        const footer = document.getElementById('modalFooter');
+        
+        if (countdownInterval) {
+            clearInterval(countdownInterval);
+            countdownInterval = null;
+        }
+        
+        header.className = 'modal-header';
+        
+        if (tipo === 'error') {
+            header.classList.add('modal-error');
+            icon.textContent = '❌';
+        } else if (tipo === 'success') {
+            header.classList.add('modal-success');
+            icon.textContent = '✅';
+        } else {
+            icon.textContent = '⚠️';
+        }
+        
+        title.textContent = titulo;
+        message.innerHTML = mensagem;
+        
+        if (showCountdown && redirectUrl) {
+            let countdown = 5;
+            message.innerHTML = mensagem + `<div class="countdown" id="countdown">Redirecionando em ${countdown} segundos...</div>`;
+            
+            footer.innerHTML = `
+                <button class="modal-btn" onclick="irAgora('${redirectUrl}')">Ir agora</button>
+                <button class="modal-btn modal-btn-secondary" onclick="fecharModal()">Fechar</button>
+            `;
+            
+            countdownInterval = setInterval(function() {
+                countdown--;
+                const countdownEl = document.getElementById('countdown');
+                if (countdownEl) {
+                    countdownEl.innerHTML = `Redirecionando em ${countdown} segundos...`;
+                }
+                if (countdown <= 0) {
+                    clearInterval(countdownInterval);
+                    window.location.href = redirectUrl;
+                }
+            }, 1000);
+        } else {
+            footer.innerHTML = `<button class="modal-btn" onclick="fecharModal()">OK</button>`;
+        }
+        
+        modalCallback = callback;
+        modal.style.display = 'block';
+    }
+    
+    function irAgora(url) {
+        if (countdownInterval) {
+            clearInterval(countdownInterval);
+            countdownInterval = null;
+        }
+        window.location.href = url;
+    }
+    
+    function fecharModal() {
+        const modal = document.getElementById('modal');
+        modal.style.display = 'none';
+        if (countdownInterval) {
+            clearInterval(countdownInterval);
+            countdownInterval = null;
+        }
+        if (modalCallback) {
+            modalCallback();
+            modalCallback = null;
+        }
+    }
+    
+    window.onclick = function(event) {
+        const modal = document.getElementById('modal');
+        if (event.target === modal) {
+            fecharModal();
+        }
+    }
+    
+    // Extrai partes do nome para validação (será preenchido após carregar)
+    let partesNome = [];
+    
+    function atualizarPartesNome(nome) {
+        partesNome = nome.toLowerCase().split(/\s+/);
+    }
+    
+    function verificarProblemasSenha(senha) {
+        const problemas = [];
+        const senhaLower = senha.toLowerCase();
+        
+        for (const parte of partesNome) {
+            if (parte.length >= 3 && senhaLower.includes(parte)) {
+                problemas.push(`• Contém "${parte}" (seu nome/sobrenome)`);
+                break;
+            }
+        }
+        
+        const numeros = senha.replace(/[^0-9]/g, '');
+        const sequencias = [
+            '123', '1234', '12345', '123456', '1234567', '12345678',
+            '234', '2345', '23456', '234567', '2345678',
+            '345', '3456', '34567', '345678',
+            '456', '4567', '45678',
+            '567', '5678', '56789',
+            '678', '6789',
+            '789', '7890',
+            '890', '8901',
+            '901', '9012',
+            '012', '0123', '01234', '012345', '0123456', '01234567',
+            '321', '4321', '54321', '654321', '7654321', '87654321',
+            '987', '9876', '98765', '987654', '9876543', '98765432'
+        ];
+        
+        for (const seq of sequencias) {
+            if (numeros.includes(seq)) {
+                problemas.push(`• Contém sequência numérica "${seq}"`);
+                break;
+            }
+        }
+        
+        return problemas;
+    }
+    
+    // Elementos
+    const novaSenhaInput = document.getElementById('novaSenha');
+    const confirmarSenhaInput = document.getElementById('confirmarSenha');
+    const btnConfirmar = document.getElementById('btnConfirmar');
+    
+    function verificarRequisitos() {
+        const senha = novaSenhaInput.value;
+        const confirmar = confirmarSenhaInput.value;
+        
+        const requisitos = {
+            length: senha.length >= 8,
+            lower: /[a-z]/.test(senha),
+            upper: /[A-Z]/.test(senha),
+            number: /[0-9]/.test(senha),
+            special: /[!@#$%^&*(),.?":{}|<>]/.test(senha),
+            match: senha === confirmar && senha.length > 0
+        };
+        
+        document.getElementById('reqLength').className = `requirement ${requisitos.length ? 'valid' : ''}`;
+        document.getElementById('reqLength').innerHTML = requisitos.length ? '✅ Mínimo de 8 caracteres' : '❌ Mínimo de 8 caracteres';
+        
+        document.getElementById('reqLower').className = `requirement ${requisitos.lower ? 'valid' : ''}`;
+        document.getElementById('reqLower').innerHTML = requisitos.lower ? '✅ Pelo menos 1 letra minúscula' : '❌ Pelo menos 1 letra minúscula';
+        
+        document.getElementById('reqUpper').className = `requirement ${requisitos.upper ? 'valid' : ''}`;
+        document.getElementById('reqUpper').innerHTML = requisitos.upper ? '✅ Pelo menos 1 letra maiúscula' : '❌ Pelo menos 1 letra maiúscula';
+        
+        document.getElementById('reqNumber').className = `requirement ${requisitos.number ? 'valid' : ''}`;
+        document.getElementById('reqNumber').innerHTML = requisitos.number ? '✅ Pelo menos 1 número' : '❌ Pelo menos 1 número';
+        
+        document.getElementById('reqSpecial').className = `requirement ${requisitos.special ? 'valid' : ''}`;
+        document.getElementById('reqSpecial').innerHTML = requisitos.special ? '✅ Pelo menos 1 caractere especial' : '❌ Pelo menos 1 caractere especial';
+        
+        document.getElementById('reqMatch').className = `requirement ${requisitos.match ? 'valid' : ''}`;
+        document.getElementById('reqMatch').innerHTML = requisitos.match ? '✅ As senhas coincidem' : '❌ As senhas devem coincidir';
+        
+        btnConfirmar.disabled = !(requisitos.length && requisitos.lower && requisitos.upper && requisitos.number && requisitos.special && requisitos.match);
+    }
+    
+    // Função para resetar a senha via API (usando token)
+    btnConfirmar.onclick = async function() {
+        const novaSenha = novaSenhaInput.value;
+        const confirmarSenha = confirmarSenhaInput.value;
+        
+        if (!novaSenha || novaSenha.length === 0) {
+            mostrarModal('error', 'Senha vazia', '❌ Digite uma nova senha!');
+            return;
+        }
+        
+        if (novaSenha !== confirmarSenha) {
+            mostrarModal('error', 'Senhas não coincidem', '❌ As senhas digitadas não coincidem!');
+            return;
+        }
+        
+        const problemas = verificarProblemasSenha(novaSenha);
+        
+        if (problemas.length > 0) {
+            const listaProblemas = problemas.join('<br>');
+            mostrarModal('error', 'Senha não permitida', 
+                `❌ A senha viola as seguintes regras:<br><br>${listaProblemas}<br><br>` +
+                `<small>Por favor, escolha uma senha diferente.</small>`);
+            return;
+        }
+        
+        console.log('📤 Enviando requisição com token e nova senha');
+        
+        document.getElementById('loading').style.display = 'block';
+        btnConfirmar.disabled = true;
+        
+        try {
+            const response = await fetch('/api/resetar-senha', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Bypass-Tunnel-Reminder': 'true'
+                },
+                body: JSON.stringify({
+                    token: token,           // ← ENVIA O TOKEN
+                    nova_senha: novaSenha
+                    // NÃO envia login e nome - o servidor obtém do token
+                })
+            });
+            
+            const result = await response.json();
+            console.log('📥 Resposta:', result);
+            
+            if (result.success) {
+                mostrarModal('success', 'Senha resetada com sucesso!', 
+                    `✅ ${result.message}<br><br>` +
+                    `🔑 Nova senha: <strong>${novaSenha}</strong><br><br>` +
+                    `🔜 Você será redirecionado para o <strong>GLPI</strong>.<br><br>` +
+                    `📌 <a href="${GLPI_URL}" class="glpi-link" target="_blank">Clique aqui</a> se não for redirecionado automaticamente.`,
+                    null,
+                    true,
+                    GLPI_URL);
+            } else {
+                mostrarModal('error', 'Erro ao resetar', 
+                    `❌ ${result.error || 'Erro ao resetar a senha.'}<br><br>` +
+                    `<small>Tente novamente ou contate o suporte.</small>`);
+            }
+        } catch (error) {
+            console.error('❌ Erro:', error);
+            mostrarModal('error', 'Erro de conexão', 
+                `❌ Erro de conexão: ${error.message}<br><br>` +
+                `<small>Verifique sua internet e tente novamente.</small>`);
+        } finally {
+            document.getElementById('loading').style.display = 'none';
+            btnConfirmar.disabled = false;
+        }
+    };
+    
+    novaSenhaInput.addEventListener('input', verificarRequisitos);
+    confirmarSenhaInput.addEventListener('input', verificarRequisitos);
+    
+    // Inicialização: carrega dados do token e depois ativa a página
+    (async function init() {
+        await carregarDadosDoToken();
+        atualizarPartesNome(userName);
+        verificarRequisitos();
+        
+        // Mostra o container (se estava escondido)
+        document.querySelector('.container').style.display = 'block';
+    })();
+</script>
+
+</body>
+</html>

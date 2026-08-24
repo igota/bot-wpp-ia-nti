@@ -1,0 +1,89 @@
+# Instruções locais do Claude Code (não versionado)
+CLAUDE.md
+
+# Dependências
+node_modules/
+
+# Arquivos de cache/autenticação do WhatsApp
+.wwebjs_auth/
+.wwebjs_cache/
+auth_info/
+tokens/
+
+# Arquivos de log
+logs/
+*.log
+
+
+
+# Ambiente Python (se usado)
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+env/
+venv/
+tempCodeRunnerFile.python
+*.spec
+
+# Ambiente Virtual (se usado)
+.venv/
+venv/
+
+# Sistema operacional
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Editor/IDE
+.vscode/
+.idea/
+*.iml
+*.swp
+*.swo
+*~
+
+# Arquivos de configuração local
+.env
+.env.local
+.env.*.local
+
+# Credenciais (ex: chave JSON de conta de serviço do Google Cloud)
+bot/credentials/
+
+# Dados reais de funcionários (PII) - nunca versionar
+bot/json/dados_alteracao.json
+bot/json/emails_cache.json
+
+# Arquivos temporários
+*.tmp
+*.temp
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Build/Output (se houver)
+dist/
+build/
+out/
+
+# Arquivos de pacote (package-lock.json você mantém)
+# package-lock.json NÃO deve ser ignorado! 
+# Ele deve estar no repositório
+
+# Especificamente para seu projeto
+# Ignora arquivos de teste temporários
+test/temp/
+test/*.tmp
+
+# Ignora servidor.spec se for um arquivo de especificação local
+servidor.spec
+
+# Mantém o arquivo package.json
+!package.json
+
+# Mantém o servidor principal (se for necessário)
+# !servidor/
+# !bot/

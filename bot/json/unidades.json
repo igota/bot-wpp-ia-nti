@@ -1,0 +1,218 @@
+{
+  "unidades": [
+    {
+      "valor": "0",
+      "nome": "SELECIONE"
+    },
+    {
+      "valor": "1",
+      "nome": "CASA DE CUIDADOS DO CEARÁ"
+    },
+    {
+      "valor": "2",
+      "nome": "CENTRO DE ATENÇÃO PSICOSSOCIAL"
+    },
+    {
+      "valor": "3",
+      "nome": "CONVÊNIOS"
+    },
+    {
+      "valor": "4",
+      "nome": "FROTINHA"
+    },
+    {
+      "valor": "5",
+      "nome": "HOSPITAL ANTÔNIO PRUDENTE"
+    },
+    {
+      "valor": "6",
+      "nome": "HOSPITAL CURA D'ARS"
+    },
+    {
+      "valor": "7",
+      "nome": "HOSPITAL DE MESSEJANA"
+    },
+    {
+      "valor": "8",
+      "nome": "HOSPITAL DE SAÚDE MENTAL DE MESSEJANA"
+    },
+    {
+      "valor": "9",
+      "nome": "HOSPITAL DISTRITAL GONZAGA MOTA JOSÉ WALTER"
+    },
+    {
+      "valor": "10",
+      "nome": "HOSPITAL ESTADUAL LEONARDO DA VINCI"
+    },
+    {
+      "valor": "11",
+      "nome": "HOSPITAL FERNANDES TÁVORA"
+    },
+    {
+      "valor": "12",
+      "nome": "HOSPITAL GERAL CESAR CALS"
+    },
+    {
+      "valor": "13",
+      "nome": "HOSPITAL GERAL FORTALEZA"
+    },
+    {
+      "valor": "14",
+      "nome": "HOSPITAL GERAL WALDEMAR ALCANTARA"
+    },
+    {
+      "valor": "15",
+      "nome": "HOSPITAL INFANTIL ALBERT SABIN"
+    },
+    {
+      "valor": "16",
+      "nome": "HOSPITAL INFANTIL LUIS FRANCA"
+    },
+    {
+      "valor": "17",
+      "nome": "HOSPITAL JOSE MARTINIANO DE ALENCAR"
+    },
+    {
+      "valor": "18",
+      "nome": "HOSPITAL REGIONAL DE ITAPIPOCA"
+    },
+    {
+      "valor": "19",
+      "nome": "HOSPITAL REGIONAL DO CARIRI"
+    },
+    {
+      "valor": "20",
+      "nome": "HOSPITAL REGIONAL DO SERTAO CENTRAL"
+    },
+    {
+      "valor": "21",
+      "nome": "HOSPITAL REGIONAL NORTE"
+    },
+    {
+      "valor": "22",
+      "nome": "HOSPITAL REGIONAL VALE DO JAGUARIBE"
+    },
+    {
+      "valor": "23",
+      "nome": "HOSPITAL SÃO JOSE"
+    },
+    {
+      "valor": "24",
+      "nome": "HOSPITAL SÃO RAIMUNDO"
+    },
+    {
+      "valor": "25",
+      "nome": "HOSPITAL UNICLINIC"
+    },
+    {
+      "valor": "26",
+      "nome": "HOSPITAL UNIVERSITÁRIO DO CEARÁ"
+    },
+    {
+      "valor": "27",
+      "nome": "HOSPITAL UNIVERSITARIO WALTER CANTIDIO"
+    },
+    {
+      "valor": "28",
+      "nome": "INSTITUTO DE SAUDE E GESTAO HOSPITALAR"
+    },
+    {
+      "valor": "29",
+      "nome": "INSTITUTO DOUTOR JOSE FROTA"
+    },
+    {
+      "valor": "30",
+      "nome": "ISGH - ARMAZÉM CENTRAL"
+    },
+    {
+      "valor": "31",
+      "nome": "ISGH - ESCOLA DE SAÚDE E GESTÃO"
+    },
+    {
+      "valor": "32",
+      "nome": "ISGH - MAIS LAB"
+    },
+    {
+      "valor": "33",
+      "nome": "MATERNIDADE ESCOLA ASSIS CHATEAUBRIAND"
+    },
+    {
+      "valor": "34",
+      "nome": "POLICLÍNICA DE MARACANAÚ"
+    },
+    {
+      "valor": "35",
+      "nome": "PRIMILAB"
+    },
+    {
+      "valor": "36",
+      "nome": "PRONTLAV"
+    },
+    {
+      "valor": "37",
+      "nome": "SAD"
+    },
+    {
+      "valor": "38",
+      "nome": "SANTA CASA DA MISERICÓRDIA DE FORTALEZA"
+    },
+    {
+      "valor": "39",
+      "nome": "SECRETARIA MUNICIPAL DE SAÚDE"
+    },
+    {
+      "valor": "40",
+      "nome": "SOPAI - HOSPITAL INFANTIL FILANTRÓPICO"
+    },
+    {
+      "valor": "41",
+      "nome": "UPA - AUTRAN NUNES"
+    },
+    {
+      "valor": "42",
+      "nome": "UPA - CANINDEZINHO"
+    },
+    {
+      "valor": "43",
+      "nome": "UPA - CONJUNTO CEARÁ"
+    },
+    {
+      "valor": "44",
+      "nome": "UPA CRISTO REDENTOR"
+    },
+    {
+      "valor": "45",
+      "nome": "UPA - EDSON QUEIROZ"
+    },
+    {
+      "valor": "46",
+      "nome": "UPA ITAPERI"
+    },
+    {
+      "valor": "47",
+      "nome": "UPA JANGURUSSU"
+    },
+    {
+      "valor": "48",
+      "nome": "UPA - JOSÉ WALTER"
+    },
+    {
+      "valor": "49",
+      "nome": "UPA - MESSEJANA"
+    },
+    {
+      "valor": "50",
+      "nome": "UPA - PRAIA DO FUTURO"
+    },
+    {
+      "valor": "51",
+      "nome": "UPAS - ESTADO"
+    },
+    {
+      "valor": "52",
+      "nome": "UPAS-SAD"
+    }
+  ],
+  "total": 53,
+  "data_captura": "2026-04-28 00:02:56"
+}
