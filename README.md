@@ -122,6 +122,8 @@ Produção roda os dois processos (`whatsapp-bot` e `reset-senha-api`) via PM2, 
 
 `servidor/run.spec`/`servidor.spec` são specs do PyInstaller para empacotar o Flask app num `.exe` standalone; não fazem parte do ciclo normal de desenvolvimento.
 
+Para o passo a passo completo de como colocar os dois processos rodando do zero num servidor novo (pré-requisitos, `.env`, PM2, caminhos hardcoded que precisam ser ajustados), veja **[DEPLOY.md](DEPLOY.md)**.
+
 ## Segurança e dados sensíveis
 
 - **Nunca versionar** `.env`, `bot/credentials/` (chave de conta de serviço Google), `bot/json/dados_alteracao.json` e `bot/json/emails_cache.json` — todos já cobertos pelo `.gitignore`.
