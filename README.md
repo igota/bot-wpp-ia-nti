@@ -20,11 +20,11 @@ Um funcionário manda mensagem pro número do bot no WhatsApp e, pelo menu, rese
 
 | Sistema | O que é | Como o bot mexe nele |
 |---|---|---|
-| **GLPI** | Sistema de chamados/ticketing | A "senha do GLPI" é na verdade a conta do **Active Directory** — o reset roda PowerShell remoto contra o AD. É a mesma senha do login do Windows do funcionário. |
+| **GLPI** | Sistema padrão de abertura de chamados do hospital (ticketing) | A "senha do GLPI" é na verdade a conta do **Active Directory** — o reset roda PowerShell remoto contra o AD. É a mesma senha do login do Windows do funcionário. |
 | **CONECTA** | Portal/RH interno | API REST própria — login, busca por CPF/nome e reset de senha via chamadas HTTP (sem navegador). |
 | **VITAE** | Sistema hospitalar | Não tem API utilizável para alterar e-mail, então o bot automatiza o navegador (Puppeteer) para fazer a alteração pela própria interface web do sistema. |
 
-Além do fluxo de autoatendimento, existe um **menu oculto para operadores do NTI/NAC** (`@nti` / `@nac`, liberado só para números autorizados) com busca de usuário nos sistemas, busca de IP de equipamento numa planilha de inventário de rede e ping de diagnóstico.
+Além do fluxo de autoatendimento, existe um **menu oculto para operadores do NTI/NAC** (`@nti` / `@nac`, liberado só para números autorizados) com três opções: **transferência de usuários** entre unidades no VITAE (busca por login/nome/CPF e depois transfere a unidade), busca de IP de equipamento numa planilha de inventário de rede, e ping de diagnóstico.
 
 Há também uma camada opcional de IA (Google Gemini, free tier) que deixa as respostas do bot mais naturais e responde dúvidas gerais consultando uma base de conhecimento do NTI (`base_conhecimento_nti.md`). É só um verniz: se a IA falhar, não tiver chave configurada ou demorar demais, o bot cai automaticamente no comportamento padrão de mensagens fixas — nunca é obrigatória para o fluxo funcionar.
 
