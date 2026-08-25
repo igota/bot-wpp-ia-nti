@@ -55,6 +55,7 @@ Nenhum dos dois é versionado (ambos gitignored) — precisam ser criados manual
 | `PUPPETEER_HEADLESS`, `PUPPETEER_EXECUTABLE_PATH`, `PUPPETEER_ARGS` | Configuração do navegador headless (VITAE) |
 | `GEMINI_API_KEY`, `GEMINI_MODEL`, `IA_ATIVA` | Camada opcional de IA — pode deixar em branco, o bot funciona sem ela |
 | `GOOGLE_SHEETS_ID`, `GOOGLE_SERVICE_ACCOUNT_KEY_PATH` | Planilha de inventário de rede (menu oculto `@nti`/`@nac`) |
+| `NUMEROS_NTI`, `NUMEROS_NAC` | Allowlist de operadores do menu oculto `@nti`/`@nac` — JIDs do WhatsApp separados por vírgula (ex: `NUMEROS_NTI=1111@lid,2222@lid`). Sem isso, ninguém acessa o menu oculto neste servidor. |
 
 Se for usar `GOOGLE_SHEETS_ID`, também é preciso colocar a chave de conta de serviço do Google Cloud em `bot/credentials/` (pasta gitignored, criar manualmente).
 
@@ -117,4 +118,4 @@ Depois de corrigidos os caminhos (passo 6), use os scripts em `bats/` em vez de 
 
 ## 10. Se este servidor também vai operar o menu oculto `@nti`/`@nac`
 
-A allowlist de operadores (`NUMEROS_NTI` / `NUMEROS_NAC`) está hardcoded em `bot/bot.js` — **não é configurável por `.env`**. Se os operadores autorizados mudarem neste ambiente, edite o array diretamente no código-fonte, faça commit e reinicie o bot.
+Configure `NUMEROS_NTI`/`NUMEROS_NAC` no `bot/.env` deste servidor (passo 4) com os JIDs dos operadores autorizados. Sem essas variáveis, a allowlist fica vazia e o menu oculto não é acessível por ninguém — comportamento seguro por padrão, mas lembre de configurá-las se este ambiente também atende operadores do NTI/NAC.

@@ -45,7 +45,12 @@ module.exports = {
     bot: {
         timeoutInatividade: parseInt(process.env.TIMEOUT_INATIVIDADE_MINUTES) || 5,
         maxReconnectAttempts: parseInt(process.env.MAX_RECONNECT_ATTEMPTS) || 5,
-        sessionCleanupInterval: parseInt(process.env.SESSION_CLEANUP_INTERVAL_MINUTES) || 5
+        sessionCleanupInterval: parseInt(process.env.SESSION_CLEANUP_INTERVAL_MINUTES) || 5,
+        // Allowlist de operadores do menu oculto @nti/@nac (JIDs do WhatsApp), separados por
+        // vírgula no .env. Sem essa variável configurada, a allowlist fica vazia - ninguém
+        // acessa o menu oculto, em vez de liberar geral por engano.
+        numerosNti: (process.env.NUMEROS_NTI || '').split(',').map(n => n.trim()).filter(Boolean),
+        numerosNac: (process.env.NUMEROS_NAC || '').split(',').map(n => n.trim()).filter(Boolean)
     },
     
     // WhatsApp Configurations

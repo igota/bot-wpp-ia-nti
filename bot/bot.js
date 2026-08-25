@@ -79,22 +79,18 @@ const TIMEOUT_INATIVIDADE = (config.bot?.timeoutInatividade || 5) * 60 * 1000;
 
 const COMANDO_SECRETO = '@nti'; // ← Comando que só o NTI sabe
 
-const NUMEROS_NTI = [
-    '196271549735130@lid',   // Substitua pelos números reais
-    '52364979527878@lid'
-    
-];
+// Allowlist configurada via NUMEROS_NTI no .env (ver bot/config.js) - lista de JIDs
+// separados por vírgula. Não editar aqui; editar bot/.env.
+const NUMEROS_NTI = config.bot.numerosNti;
 
 // Menu oculto irmão do @nti — mesmo fluxo hoje, mas mantido com steps e allowlist
 // próprios (prefixo NAC_) para que opções futuras adicionadas só ao @nti não vazem
 // para cá e vice-versa.
 const COMANDO_SECRETO_NAC = '@nac'; // ← Comando que só o NAC sabe
 
-const NUMEROS_NAC = [
-    '196271549735130@lid',   // Substitua pelos números reais
-    '52364979527878@lid',
-    '84482023506097@lid'
-];
+// Allowlist configurada via NUMEROS_NAC no .env (ver bot/config.js) - lista de JIDs
+// separados por vírgula. Não editar aqui; editar bot/.env.
+const NUMEROS_NAC = config.bot.numerosNac;
 
 // 🔥 INJETA O TRANSPORTER E CONFIG NOS MÓDULOS (CORRIGIDO)
 glpi.setTransporter(transporter, config);

@@ -34,7 +34,7 @@ Há também uma camada opcional de IA (Google Gemini, free tier) que deixa as re
 
 Tudo passa por um único handler `client.on('message', ...)`. O estado da conversa de cada usuário fica em `sessions[from]` (`from` = JID do WhatsApp), e `session.step` guia uma cadeia longa de `if/else` — não há router/tabela de dispatch, cada passo novo é mais um bloco `if (session.step === ...)`.
 
-Dois comandos são interceptados globalmente antes da lógica de step: `MENU` (reseta a sessão pro passo 0) e `SAIR` (cancela e apaga a sessão) — ambos também encerram qualquer sessão de navegador aberta no VITAE. O comando oculto `@nti` (e seu irmão `@nac`), liberado por uma allowlist fixa de JIDs no próprio código-fonte, abre um fluxo de menu separado (`NTI_MENU`/`NAC_MENU`) para operadores.
+Dois comandos são interceptados globalmente antes da lógica de step: `MENU` (reseta a sessão pro passo 0) e `SAIR` (cancela e apaga a sessão) — ambos também encerram qualquer sessão de navegador aberta no VITAE. O comando oculto `@nti` (e seu irmão `@nac`), liberado por uma allowlist de JIDs configurada via `.env` (`NUMEROS_NTI`/`NUMEROS_NAC`), abre um fluxo de menu separado (`NTI_MENU`/`NAC_MENU`) para operadores.
 
 `bot/config.js` carrega `bot/.env` e é injetado em cada módulo de integração via `<módulo>.setTransporter(transporter, config)` — apesar do nome, é assim que tanto o transporter de e-mail (nodemailer) quanto o objeto de config chegam a `glpi.js`/`conecta.js`/`vitae.js`, evitando `require` circular de volta pro `bot.js`.
 
@@ -106,10 +106,11 @@ Variáveis lidas por `bot/config.js`:
 | `PUPPETEER_HEADLESS`, `PUPPETEER_EXECUTABLE_PATH`, `PUPPETEER_ARGS` | Configuração do navegador headless (VITAE) |
 | `GEMINI_API_KEY`, `GEMINI_MODEL`, `IA_ATIVA` | Camada opcional de IA — sem `GEMINI_API_KEY`, o bot roda normalmente no modo padrão |
 | `GOOGLE_SHEETS_ID`, `GOOGLE_SERVICE_ACCOUNT_KEY_PATH` | Planilha de inventário de rede (menu oculto `@nti`/`@nac`) — precisa também de uma chave de conta de serviço do Google Cloud em `bot/credentials/` (gitignored) |
+| `NUMEROS_NTI`, `NUMEROS_NAC` | Allowlist de operadores do menu oculto `@nti`/`@nac` — JIDs do WhatsApp separados por vírgula |
 
 `servidor/app.py` carrega seu próprio conjunto de variáveis via `load_dotenv()` (servidor/domínio AD, SMTP, expiração de token, URLs base) — ver o topo do arquivo para a lista completa.
 
-A allowlist de operadores do NTI/NAC (`NUMEROS_NTI`/`NUMEROS_NAC` em `bot/bot.js`) **não é configurável por `.env`** — para adicionar ou remover operadores é preciso editar o código-fonte diretamente.
+A allowlist de operadores do NTI/NAC é configurada via `NUMEROS_NTI`/`NUMEROS_NAC` no `bot/.env` (lista de JIDs do WhatsApp separados por vírgula, ver `bot/config.js`) — para adicionar ou remover operadores basta editar o `.env` e reiniciar o bot, sem tocar no código-fonte. Sem essas variáveis configuradas, a allowlist fica vazia (menu oculto inacessível).
 
 ## Deploy em produção (PM2)
 
