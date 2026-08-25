@@ -2,7 +2,7 @@
 
 Passo a passo para colocar os dois processos (bot de WhatsApp e servidor de reset de senha) rodando do zero num servidor Windows novo. Para entender o que cada peça faz, veja o [README](README.md) primeiro.
 
-> ⚠️ **Antes de seguir este guia**: `pm2/ecosystem.config.js` e os scripts em `bats/*.bat` têm **caminhos absolutos hardcoded** (ex: `C:/Mega/Projeto BOT WPP - IA/bot`) e os `bats/*.bat` hoje referenciam nomes de processo PM2 diferentes dos declarados em `ecosystem.config.js` (`whatsapp-bot` vs `whatsapp-bot-ia-proto`, `reset-senha-api` vs `reset-senha-api-ia-proto`). Se o servidor novo clonar o repositório em outro caminho, **ajuste os dois arquivos antes de usar os scripts** — o passo 6 abaixo detalha isso.
+> ⚠️ **Antes de seguir este guia**: os scripts em `bats/*.bat` têm **caminhos absolutos hardcoded** (`C:\Mega\Projeto BOT WPP\...`, de uma instalação antiga) e referenciam nomes de processo PM2 diferentes dos declarados em `pm2/ecosystem.config.js` (`whatsapp-bot` vs `whatsapp-bot-ia-proto`, `reset-senha-api` vs `reset-senha-api-ia-proto`). **Ajuste os `.bat` antes de usá-los** — o passo 6 abaixo detalha isso. (O `cwd` do `ecosystem.config.js` em si **não precisa de ajuste**: ele é calculado automaticamente a partir da posição do próprio arquivo, então funciona em qualquer caminho onde o repositório for clonado.)
 
 ## 0. Pré-requisitos no servidor
 
@@ -21,7 +21,7 @@ git clone https://github.com/igota/bot-wpp-ia-nti.git
 cd bot-wpp-ia-nti
 ```
 
-Anote o caminho absoluto onde o repositório ficou — ele é usado nos passos 6 e 7.
+Anote o caminho absoluto onde o repositório ficou — ele é usado no passo 6.
 
 ## 2. Instalar dependências Node.js
 
@@ -80,18 +80,13 @@ node bot/bot.js
 
 Um QR code aparece no terminal — escaneie com a conta de WhatsApp que vai atuar como o bot (WhatsApp > Aparelhos conectados > Conectar um aparelho). A sessão fica salva em `.wwebjs_auth/` (gitignored). Depois que aparecer confirmação de conexão, pare o processo (`Ctrl+C`) — o PM2 assume a partir daqui.
 
-## 6. Ajustar `pm2/ecosystem.config.js` e `bats/*.bat` para o caminho deste servidor
+## 6. Ajustar `bats/*.bat` para este servidor
 
-Abra `pm2/ecosystem.config.js` e confira se os campos `cwd` de cada app apontam para o caminho real onde você clonou o repositório neste servidor (passo 1):
+`pm2/ecosystem.config.js` não precisa de edição — o `cwd` de cada app é resolvido automaticamente a partir de onde o arquivo está (`path.join(__dirname, '..', 'bot')` / `'..', 'servidor'`).
 
-```js
-cwd: 'C:/caminho/real/deste/servidor/bot',      // app whatsapp-bot-ia-proto
-cwd: 'C:/caminho/real/deste/servidor/servidor', // app reset-senha-api-ia-proto
-```
-
-Depois, abra cada arquivo em `bats/` (`iniciar-bot.bat`, `parar-bot.bat`, `reiniciar-bot.bat`, `limpeza-cache-bot.bat`) e:
-1. Corrija o `cd /d "..."` para o mesmo caminho real usado acima.
-2. Corrija os nomes de processo nos comandos `pm2 stop`/`pm2 start` para bater com os nomes declarados em `ecosystem.config.js` (`whatsapp-bot-ia-proto` e `reset-senha-api-ia-proto`) — os scripts atuais usam nomes antigos (`whatsapp-bot`, `reset-senha-api`) que não existem mais no `ecosystem.config.js` deste repositório.
+Já os scripts em `bats/` (`iniciar-bot.bat`, `parar-bot.bat`, `reiniciar-bot.bat`, `limpeza-cache-bot.bat`) precisam de dois ajustes manuais:
+1. Corrija o `cd /d "..."` de cada um para o caminho real onde você clonou o repositório neste servidor (passo 1) — hoje eles apontam para `C:\Mega\Projeto BOT WPP\pm2` / `...\bot`, de uma instalação antiga.
+2. Corrija os nomes de processo nos comandos `pm2 stop`/`pm2 start` para bater com os nomes declarados em `ecosystem.config.js` (`whatsapp-bot-ia-proto` e `reset-senha-api-ia-proto`) — os scripts atuais usam nomes antigos (`whatsapp-bot`, `reset-senha-api`) que não existem no `ecosystem.config.js` deste repositório.
 
 ## 7. Subir com PM2
 

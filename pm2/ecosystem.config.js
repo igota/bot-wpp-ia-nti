@@ -1,3 +1,11 @@
+const path = require('path');
+
+// cwd de cada app é calculado a partir da posição deste arquivo (pm2/), não hardcoded -
+// pm2/ é sempre irmã de bot/ e servidor/ dentro do repo, então isso funciona em qualquer
+// máquina/caminho onde o repositório for clonado, sem precisar editar nada por servidor.
+const BOT_DIR = path.join(__dirname, '..', 'bot');
+const SERVIDOR_DIR = path.join(__dirname, '..', 'servidor');
+
 module.exports = {
   apps: [
     {
@@ -8,7 +16,7 @@ module.exports = {
       autorestart: true,
       watch: false,
       max_memory_restart: '300M',
-      cwd: 'C:/Mega/Projeto BOT WPP - IA/bot',
+      cwd: BOT_DIR,
       // Todas as credenciais e URLs de sistemas ficam em bot/.env (gitignored), carregado
       // por bot/config.js independente de como o processo é iniciado. Este bloco só define
       // o que é config de processo (não segredo) - não adicione credenciais aqui de volta.
@@ -29,7 +37,7 @@ module.exports = {
       name: 'reset-senha-api-ia-proto',
       script: 'run.py',
       interpreter: 'python',
-      cwd: 'C:/Mega/Projeto BOT WPP - IA/servidor',
+      cwd: SERVIDOR_DIR,
       instances: 1,
       exec_mode: 'fork',
       autorestart: true,
