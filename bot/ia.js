@@ -44,41 +44,62 @@ function setConfig(appConfig) {
     if (IA_CONFIG.ativo) carregarBaseConhecimento();
 }
 
-async function chamarGemini(prompt, { timeoutMs = 6000, temperature = 0.4 } = {}) {
+// `tentativas` > 1 refaz a chamada quando o motivo da falha for passageiro (timeout ou 503 -
+// modelo sobrecarregado no free tier) - erros de outra natureza (ex: 400, chave inválida) não
+// tendem a se resolver numa segunda tentativa, então não vale gastar mais tempo repetindo.
+async function chamarGemini(prompt, { timeoutMs = 6000, temperature = 0.4, tentativas = 1, thinkingBudget = null } = {}) {
     if (!IA_CONFIG?.ativo) return null;
 
-    try {
-        const url = `${GEMINI_BASE_URL}/${IA_CONFIG.modelo}:generateContent?key=${IA_CONFIG.apiKey}`;
-        const resposta = await axios.post(url, {
-            contents: [{ parts: [{ text: prompt }] }],
-            generationConfig: {
+    for (let tentativa = 1; tentativa <= tentativas; tentativa++) {
+        try {
+            const url = `${GEMINI_BASE_URL}/${IA_CONFIG.modelo}:generateContent?key=${IA_CONFIG.apiKey}`;
+            const generationConfig = {
                 temperature,
                 // Modelos com "raciocínio" (thinking) gastam parte do maxOutputTokens pensando
                 // antes de gerar o texto visível - por isso o valor generoso aqui. O guard de
                 // finishReason abaixo é quem garante que nunca sai uma resposta cortada.
                 maxOutputTokens: 2048
+            };
+            // thinkingBudget baixo evita que o modelo "pense" antes de responder (medido: ~10s de
+            // thinking até pra um prompt trivial, sem thinkingConfig). Não pode ser 0 (a API rejeita
+            // com 400 nesse modelo) - 1 é o mínimo aceito e já derruba a latência pra menos de 1s.
+            if (thinkingBudget !== null) generationConfig.thinkingConfig = { thinkingBudget };
+
+            const resposta = await axios.post(url, {
+                contents: [{ parts: [{ text: prompt }] }],
+                generationConfig
+            }, { timeout: timeoutMs });
+
+            const candidato = resposta.data?.candidates?.[0];
+            const finishReason = candidato?.finishReason;
+
+            // Só aceita resposta completa (STOP). Qualquer corte (MAX_TOKENS, SAFETY, etc.)
+            // é tratado como falha - é mais seguro cair no texto padrão do que mandar algo cortado.
+            if (finishReason && finishReason !== 'STOP') {
+                console.warn(`⚠️ IA: resposta incompleta do Gemini (finishReason=${finishReason}) - usando fallback padrão`);
+                return null;
             }
-        }, { timeout: timeoutMs });
 
-        const candidato = resposta.data?.candidates?.[0];
-        const finishReason = candidato?.finishReason;
+            const texto = candidato?.content?.parts?.map(p => p.text || '').join('');
+            // O prompt pede negrito no formato do WhatsApp (*asterisco simples*), mas o modelo às vezes
+            // ignora e usa **negrito duplo** (Markdown) mesmo assim - normaliza aqui em vez de confiar
+            // 100% na instrução, pra nunca mandar asterisco duplo literal pro usuário.
+            return texto ? texto.trim().replace(/\*\*(.+?)\*\*/g, '*$1*') : null;
+        } catch (error) {
+            const status = error.response?.status;
+            const éPassageiro = status === 503 || error.code === 'ECONNABORTED' || /timeout/i.test(error.message);
 
-        // Só aceita resposta completa (STOP). Qualquer corte (MAX_TOKENS, SAFETY, etc.)
-        // é tratado como falha - é mais seguro cair no texto padrão do que mandar algo cortado.
-        if (finishReason && finishReason !== 'STOP') {
-            console.warn(`⚠️ IA: resposta incompleta do Gemini (finishReason=${finishReason}) - usando fallback padrão`);
+            if (éPassageiro && tentativa < tentativas) {
+                console.warn(`⚠️ IA: falha passageira ao chamar Gemini (${status || error.message}) - tentativa ${tentativa}/${tentativas}, tentando de novo...`);
+                continue;
+            }
+
+            console.warn(`⚠️ IA: falha ao chamar Gemini (${status || error.message}) - usando fallback padrão`);
             return null;
         }
-
-        const texto = candidato?.content?.parts?.map(p => p.text || '').join('');
-        // O prompt pede negrito no formato do WhatsApp (*asterisco simples*), mas o modelo às vezes
-        // ignora e usa **negrito duplo** (Markdown) mesmo assim - normaliza aqui em vez de confiar
-        // 100% na instrução, pra nunca mandar asterisco duplo literal pro usuário.
-        return texto ? texto.trim().replace(/\*\*(.+?)\*\*/g, '*$1*') : null;
-    } catch (error) {
-        console.warn(`⚠️ IA: falha ao chamar Gemini (${error.response?.status || error.message}) - usando fallback padrão`);
-        return null;
     }
+
+    return null;
 }
 
 // Interpreta uma mensagem livre no menu principal e mapeia para uma intenção conhecida.
@@ -106,19 +127,18 @@ async function interpretarOpcaoMenu(mensagemUsuario) {
         'dificuldade para manusear/utilizar a impressora de etiquetas ou qualquer outro problema com ela, ' +
         'como baixar/instalar/acessar o aplicativo CONECTA (também chamado de Beehome) ou qual o endereço de acesso ' +
         'dele, dúvida ou problema sobre o sistema Notifica, dúvida ou problema sobre o sistema Meu RH, ' +
-        'ou qualquer outro procedimento administrativo do NTI que não seja um dos sistemas acima\n' +
-        'SAUDACAO = o usuário só mandou um cumprimento/saudação (oi, olá, bom dia, boa tarde, boa noite, tudo bem?, ' +
-        'e aí, etc.), sem pedir nada específico ainda\n\n' +
+        'ou qualquer outro procedimento administrativo do NTI que não seja um dos sistemas acima\n\n' +
         `Mensagem do usuário: "${mensagemUsuario}"\n\n` +
-        'Responda com APENAS um destes tokens: 1, 2, 3, EMAIL_SENHA, EMAIL_NOVO, DUVIDA_NTI, SAUDACAO, ou 0 se não ' +
-        'for possível identificar a intenção com confiança (mensagem ambígua ou fora de contexto). ' +
+        'Responda com APENAS um destes tokens: 1, 2, 3, EMAIL_SENHA, EMAIL_NOVO, DUVIDA_NTI, ou 0 se não ' +
+        'for possível identificar a intenção com confiança (mensagem ambígua ou fora de contexto, incluindo ' +
+        'cumprimentos/saudações como oi, olá, bom dia, tudo bem?, etc. sem pedir nada específico). ' +
         'Não escreva mais nada além do token.';
 
-    const resposta = await chamarGemini(prompt, { timeoutMs: 8000, temperature: 0 });
+    const resposta = await chamarGemini(prompt, { timeoutMs: 12000, temperature: 0, tentativas: 2, thinkingBudget: 1 });
     if (!resposta) return null;
 
     const token = resposta.trim().split(/\s+/)[0].toUpperCase();
-    return ['1', '2', '3', 'EMAIL_SENHA', 'EMAIL_NOVO', 'DUVIDA_NTI', 'SAUDACAO'].includes(token) ? token : null;
+    return ['1', '2', '3', 'EMAIL_SENHA', 'EMAIL_NOVO', 'DUVIDA_NTI'].includes(token) ? token : null;
 }
 
 // Reescreve uma mensagem padrão do bot para soar mais natural, preservando todo o conteúdo factual

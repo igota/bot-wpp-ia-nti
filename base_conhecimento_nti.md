@@ -143,7 +143,7 @@ Se houver suspeita de problema na tomada, orientar o funcionário a:
 
 1. Testar outra tomada.
 2. Verificar se o equipamento funciona em outra tomada.
-3. Se a tomada continuar sem funcionar, abrir um chamado para a **Manutenção através do sistema Neovero**.
+3. Se a tomada continuar sem funcionar, abrir um chamado para a **Manutenção através do sistema Neovero** (https://isgh.neovero.com/login).
 
 ---
 
@@ -179,7 +179,7 @@ Fora do expediente:
 Se a tomada não funcionar:
 
 - Testar outra tomada.
-- Se continuar sem funcionar, abrir chamado para a **Manutenção através do sistema Neovero**.
+- Se continuar sem funcionar, abrir chamado para a **Manutenção através do sistema Neovero** (https://isgh.neovero.com/login).
 
 ---
 
@@ -225,7 +225,7 @@ Se houver suspeita de problema na tomada, orientar o funcionário a:
 
 1. Testar outra tomada.
 2. Verificar se o equipamento funciona em outra tomada.
-3. Se a tomada continuar sem funcionar, abrir um chamado para a **Manutenção através do sistema Neovero**.
+3. Se a tomada continuar sem funcionar, abrir um chamado para a **Manutenção através do sistema Neovero** (https://isgh.neovero.com/login).
 
 ---
 
@@ -335,7 +335,7 @@ O BOT deve orientar o contato com o NAC quando este documento determinar especif
 
 ## Quando encaminhar para a Manutenção
 
-Quando houver problema identificado na **tomada** ou infraestrutura elétrica, o funcionário deve abrir chamado para a Manutenção através do **Neovero**.
+Quando houver problema identificado na **tomada** ou infraestrutura elétrica, o funcionário deve abrir chamado para a Manutenção através do **Neovero** (https://isgh.neovero.com/login).
 
 ## Regra de segurança da informação
 

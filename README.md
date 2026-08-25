@@ -44,7 +44,7 @@ Dois comandos são interceptados globalmente antes da lógica de step: `MENU` (r
 - **`bot/conecta.js`** — cliente REST puro (axios) contra a API do CONECTA: login, busca por CPF/nome, reset de senha, tudo via HTTP.
 - **`bot/vitae.js`** — híbrido: login via HTTP puro (axios + cookie jar), e o resto do fluxo (busca, troca de e-mail) via Puppeteer + plugin stealth, porque o restante do sistema não tem API. Sessões de navegador por usuário ficam num `Map` em memória.
 - **`bot/ia.js`** — camada opcional de IA (Gemini) descrita acima.
-- **`bot/inventarioRede.js`** — busca de IP de computador/impressora numa planilha do Google Sheets (só leitura, via conta de serviço), usada só no menu oculto `@nti`/`@nac`. Busca 100% determinística — sem IA envolvida.
+- **`bot/inventarioRede.js`** — busca em 3 planilhas do Google Sheets (só leitura, via conta de serviço), usada só no menu oculto `@nti` (opção 2 - PLANILHAS): REDE COM FIO (IP de computador/impressora), REDE SEM FIO (dispositivo por Nome/MAC) e MODELO IMPRESSORA (contador/toner por setor, uma aba por mês — sempre lê a aba do mês atual). Busca 100% determinística — sem IA envolvida.
 - **`bot/ping.js`** — ping de diagnóstico de rede, também restrito ao menu oculto.
 
 `bot/json/*.json` é o estado em arquivo plano do bot: `cargos.json` e `unidades.json` (cache de dropdowns) são versionados; `emails_cache.json` e `dados_alteracao.json` contêm dados reais de funcionários (PII) e **nunca são versionados** (ver [Segurança](#segurança-e-dados-sensíveis)).
@@ -105,7 +105,7 @@ Variáveis lidas por `bot/config.js`:
 | `TIMEOUT_INATIVIDADE_MINUTES`, `MAX_RECONNECT_ATTEMPTS`, `SESSION_CLEANUP_INTERVAL_MINUTES` | Comportamento de sessão do bot |
 | `PUPPETEER_HEADLESS`, `PUPPETEER_EXECUTABLE_PATH`, `PUPPETEER_ARGS` | Configuração do navegador headless (VITAE) |
 | `GEMINI_API_KEY`, `GEMINI_MODEL`, `IA_ATIVA` | Camada opcional de IA — sem `GEMINI_API_KEY`, o bot roda normalmente no modo padrão |
-| `GOOGLE_SHEETS_ID`, `GOOGLE_SERVICE_ACCOUNT_KEY_PATH` | Planilha de inventário de rede (menu oculto `@nti`/`@nac`) — precisa também de uma chave de conta de serviço do Google Cloud em `bot/credentials/` (gitignored) |
+| `GOOGLE_SHEETS_ID`, `GOOGLE_SHEETS_ID_WIFI`, `GOOGLE_SHEETS_ID_IMPRESSORA`, `GOOGLE_SERVICE_ACCOUNT_KEY_PATH` | As 3 planilhas do menu oculto `@nti` → PLANILHAS (REDE COM FIO, REDE SEM FIO, MODELO IMPRESSORA) — todas lidas pela mesma chave de conta de serviço do Google Cloud em `bot/credentials/` (gitignored); a planilha precisa estar compartilhada (Leitor) com o e-mail dessa conta de serviço |
 | `NUMEROS_NTI`, `NUMEROS_NAC` | Allowlist de operadores do menu oculto `@nti`/`@nac` — JIDs do WhatsApp separados por vírgula |
 
 `servidor/app.py` carrega seu próprio conjunto de variáveis via `load_dotenv()` (servidor/domínio AD, SMTP, expiração de token, URLs base) — ver o topo do arquivo para a lista completa.

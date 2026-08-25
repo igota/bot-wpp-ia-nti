@@ -492,7 +492,7 @@ client.on('message', async (message) => {
         await client.sendMessage(from,
             `🔐 *HELPZIN ADMIN - ACESSO RESTRITO*\n\n` +
             `1 - TRANSFERÊNCIA DE USUÁRIOS\n` +
-            `2 - CONSULTAR IP\n` +
+            `2 - PLANILHAS\n` +
             `3 - PING\n\n` +
             `Digite o número da opção:`
         );
@@ -626,10 +626,13 @@ client.on('message', async (message) => {
                 session.step = 'NTI_MENU';
             } else if (body === '2') {
                 await client.sendMessage(from,
-                    `🔎 *CONSULTAR IP*\n\n` +
-                    `Digite o nome do equipamento, ou setor:`
+                    `📋 *PLANILHAS*\n\n` +
+                    `1 - REDE COM FIO\n` +
+                    `2 - REDE SEM FIO\n` +
+                    `3 - MODELO IMPRESSORA\n\n` +
+                    `Digite o número da opção:`
                 );
-                session.step = 'NTI_BUSCAR_IP';
+                session.step = 'NTI_MENU_PLANILHAS';
             } else if (body === '3') {
                 await client.sendMessage(from,
                     `📡 *PING*\n\n` +
@@ -640,10 +643,112 @@ client.on('message', async (message) => {
                 await client.sendMessage(from,
                     `🔐 *HELPZIN ADMIN*\n\n` +
                     `1 - TRANSFERÊNCIA DE USUÁRIOS\n` +
-                    `2 - CONSULTAR IP\n` +
+                    `2 - PLANILHAS\n` +
                     `3 - PING\n\n` +
                     `Digite o número da opção:`
                 );
+            }
+            return;
+        }
+
+        if (session.step === 'NTI_MENU_PLANILHAS') {
+            if (body === '1') {
+                await client.sendMessage(from,
+                    `🔎 *REDE COM FIO*\n\n` +
+                    `Digite o nome do equipamento, ou setor:`
+                );
+                session.step = 'NTI_BUSCAR_IP';
+            } else if (body === '2') {
+                await client.sendMessage(from,
+                    `🔎 *REDE SEM FIO*\n\n` +
+                    `Digite o nome ou o MAC do dispositivo:`
+                );
+                session.step = 'NTI_BUSCAR_WIFI';
+            } else if (body === '3') {
+                await client.sendMessage(from,
+                    `🔎 *MODELO IMPRESSORA*\n\n` +
+                    `Digite o setor:`
+                );
+                session.step = 'NTI_BUSCAR_IMPRESSORA';
+            } else {
+                await client.sendMessage(from,
+                    `📋 *PLANILHAS*\n\n` +
+                    `1 - REDE COM FIO\n` +
+                    `2 - REDE SEM FIO\n` +
+                    `3 - MODELO IMPRESSORA\n\n` +
+                    `Digite o número da opção:`
+                );
+            }
+            return;
+        }
+
+        if (session.step === 'NTI_BUSCAR_WIFI') {
+            const termo = body.trim();
+
+            await client.sendMessage(from, `🔍 *Buscando na planilha...* Aguarde.`);
+
+            const resultados = await inventarioRede.buscarRedeSemFio(termo);
+
+            if (resultados === null) {
+                await client.sendMessage(from,
+                    `❌ *Busca indisponível no momento.*\n\n` +
+                    `Verifique se a planilha REDE SEM FIO está configurada (GOOGLE_SHEETS_ID_WIFI/GOOGLE_SERVICE_ACCOUNT_KEY_PATH no .env) ou tente novamente mais tarde.\n\n` +
+                    `Digite *@nti* para voltar ao menu.`
+                );
+            } else if (resultados.length === 0) {
+                await client.sendMessage(from,
+                    `❌ *Nada encontrado para "${termo}".*\n\n` +
+                    `Tente com outro termo (nome ou MAC do dispositivo).\n\n` +
+                    `Digite outro termo, ou *@nti* para voltar ao menu.`
+                );
+            } else {
+                let msg = `📋 *${resultados.length} resultado(s) para "${termo}":*\n\n`;
+                resultados.forEach((r, i) => {
+                    msg += `*${i + 1}.* 📶 *${r.nome || '(sem nome cadastrado)'}*\n` +
+                        `   MAC: ${r.mac || '-'}\n\n`;
+                });
+                msg += `Digite outro termo para nova busca, ou *@nti* para voltar ao menu.`;
+                await client.sendMessage(from, msg);
+            }
+            return;
+        }
+
+        if (session.step === 'NTI_BUSCAR_IMPRESSORA') {
+            const termo = body.trim();
+
+            await client.sendMessage(from, `🔍 *Buscando na planilha...* Aguarde.`);
+
+            const resultados = await inventarioRede.buscarModeloImpressora(termo);
+
+            if (resultados === null) {
+                await client.sendMessage(from,
+                    `❌ *Busca indisponível no momento.*\n\n` +
+                    `Verifique se a planilha MODELO IMPRESSORA está configurada (GOOGLE_SHEETS_ID_IMPRESSORA/GOOGLE_SERVICE_ACCOUNT_KEY_PATH no .env) ou tente novamente mais tarde.\n\n` +
+                    `Digite *@nti* para voltar ao menu.`
+                );
+            } else if (resultados.abaNaoEncontrada) {
+                await client.sendMessage(from,
+                    `❌ *Dados de ${resultados.mesEsperado} ainda não disponíveis.*\n\n` +
+                    `A planilha desse mês ainda não foi criada/preenchida.\n\n` +
+                    `Digite *@nti* para voltar ao menu.`
+                );
+            } else if (resultados.length === 0) {
+                await client.sendMessage(from,
+                    `❌ *Nada encontrado para "${termo}".*\n\n` +
+                    `Tente com outro termo (nome do setor).\n\n` +
+                    `Digite outro termo, ou *@nti* para voltar ao menu.`
+                );
+            } else {
+                let msg = `📋 *${resultados.length} resultado(s) para "${termo}":*\n\n`;
+                resultados.forEach((r, i) => {
+                    msg += `*${i + 1}.* 🖨️ *${r.setor}*\n` +
+                        `   Equip.: ${r.equip || '-'}\n` +
+                        `   Série: ${r.serie || '-'}\n` +
+                        `   Cont. atual: ${r.contAtual || '-'}\n` +
+                        `   Mod. toner: ${r.modToner || '-'}\n\n`;
+                });
+                msg += `Digite outro termo para nova busca, ou *@nti* para voltar ao menu.`;
+                await client.sendMessage(from, msg);
             }
             return;
         }
@@ -1582,32 +1687,6 @@ client.on('message', async (message) => {
                 '- *MENU* para voltar ao menu principal\n' +
                 '- *SAIR* para cancelar atendimento';
             const menuBase = `${menuHeader}\n\n${menuOpcoes}`;
-
-            // 🔥 Saudação (oi, bom dia, etc.) sem pedido específico ainda - responde de forma
-            // calorosa junto com o menu, em vez de só despejar o menu puro. O fallback já é um
-            // texto amigável fixo (sem chamar a IA de novo), pra não dobrar o risco de timeout.
-            if (opcaoEfetiva === 'SAUDACAO') {
-                const textoFallback = `${menuHeader}\n\nOi! Tudo bem? 😊\n\n${menuOpcoes}`;
-
-                const resposta = await ia.responderNatural({
-                    evento: 'O usuário só mandou uma saudação (oi, bom dia, etc.), sem pedir nada específico ' +
-                        'ainda. Cumprimente de volta de forma calorosa e breve, e já apresente o menu de opções. ' +
-                        'IMPORTANTE DE FORMATO: a resposta TEM que começar exatamente com a linha "🤖 *HELPZIN*" ' +
-                        '(sozinha, seguida de linha em branco) antes de qualquer outra coisa.',
-                    fatos: {
-                        'opções do menu': '1 = GLPI (usuário do Windows) - alterar senha; 2 = CONECTA - alterar ' +
-                            'senha; 3 = VITAE - alterar e-mail',
-                        'outros comandos': '"MENU" volta ao menu principal, "SAIR" cancela o atendimento'
-                    },
-                    mensagemUsuario: body,
-                    historico: session.data.historicoIA || [],
-                    textoFallback
-                });
-
-                registrarHistoricoIA(session, body, resposta);
-                await client.sendMessage(from, resposta);
-                return;
-            }
 
             if (opcaoEfetiva === '1') {
                 session.data.sistema = 'GLPI';

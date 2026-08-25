@@ -67,11 +67,23 @@ module.exports = {
         ativo: process.env.IA_ATIVA !== 'false'
     },
 
-    // Planilha de inventário de rede (IPs de computadores/impressoras por setor) - uso interno @nti
+    // Planilhas de inventário (IPs, dispositivos wifi, modelos de impressora) - uso interno @nti/@nac
+    // Todas as 3 planilhas são lidas pela mesma service account (keyPath compartilhado).
     googleSheets: {
-        sheetId: process.env.GOOGLE_SHEETS_ID,
         keyPath: process.env.GOOGLE_SERVICE_ACCOUNT_KEY_PATH
             ? path.join(__dirname, process.env.GOOGLE_SERVICE_ACCOUNT_KEY_PATH)
-            : null
+            : null,
+        redeComFio: {
+            sheetId: process.env.GOOGLE_SHEETS_ID,
+            aba: 'ADM - 4'
+        },
+        redeSemFio: {
+            sheetId: process.env.GOOGLE_SHEETS_ID_WIFI,
+            aba: 'HRN ADM'
+        },
+        modeloImpressora: {
+            sheetId: process.env.GOOGLE_SHEETS_ID_IMPRESSORA
+            // aba é escolhida em tempo de execução (mês atual: JAN..DEZ), ver inventarioRede.js
+        }
     }
 };
