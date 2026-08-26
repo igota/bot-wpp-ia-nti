@@ -116,7 +116,11 @@ async function interpretarOpcaoMenu(mensagemUsuario) {
         '1 = GLPI - pedido DIRETO para resetar/trocar a senha do usuário do Windows/Active Directory ' +
         '(ex: "esqueci minha senha do windows", "quero resetar minha senha do glpi")\n' +
         '2 = CONECTA (resetar senha do sistema CONECTA, portal de RH)\n' +
-        '3 = VITAE (alterar e-mail já cadastrado no sistema VITAE, hospitalar)\n' +
+        '3 = VITAE - pedido DIRETO para consultar ou alterar o e-mail JÁ CADASTRADO no sistema VITAE ' +
+        '(ex: "quero saber meu e-mail do vitae", "preciso trocar o e-mail do vitae", "meu e-mail no vitae está ' +
+        'errado"). NÃO use este código para problemas de LOGIN/ACESSO ao Vitae (não consigo entrar, não consigo ' +
+        'acessar, esqueci a senha, dá erro ao tentar entrar) - isso é DUVIDA_NTI, pois antes de mexer no e-mail é ' +
+        'preciso entender qual é o problema\n' +
         'EMAIL_SENHA = o usuário esqueceu a senha do e-mail corporativo (Outlook/e-mail) ou quer resetar/redefinir essa senha\n' +
         'EMAIL_NOVO = o usuário quer cadastrar/criar um e-mail corporativo novo (que ainda não existe)\n' +
         'DUVIDA_NTI = qualquer outra dúvida sobre normas/procedimentos internos do NTI do hospital - ex: voucher de ' +
@@ -127,6 +131,8 @@ async function interpretarOpcaoMenu(mensagemUsuario) {
         'dificuldade para manusear/utilizar a impressora de etiquetas ou qualquer outro problema com ela, ' +
         'como baixar/instalar/acessar o aplicativo CONECTA (também chamado de Beehome) ou qual o endereço de acesso ' +
         'dele, dúvida ou problema sobre o sistema Notifica, dúvida ou problema sobre o sistema Meu RH, ' +
+        'não conseguir entrar/acessar o VITAE ou esquecimento de senha do VITAE, mensagem de "acesso não ' +
+        'permitido" em qualquer sistema, ' +
         'ou qualquer outro procedimento administrativo do NTI que não seja um dos sistemas acima\n\n' +
         `Mensagem do usuário: "${mensagemUsuario}"\n\n` +
         'Responda com APENAS um destes tokens: 1, 2, 3, EMAIL_SENHA, EMAIL_NOVO, DUVIDA_NTI, ou 0 se não ' +
@@ -154,7 +160,7 @@ async function humanizarMensagem(mensagemBase) {
         'mensagem final, sem comentários sobre a tarefa.\n\n' +
         `Mensagem original:\n"""\n${mensagemBase}\n"""`;
 
-    const resposta = await chamarGemini(prompt, { timeoutMs: 9000, temperature: 0.5 });
+    const resposta = await chamarGemini(prompt, { timeoutMs: 9000, temperature: 0.5, thinkingBudget: 1 });
     return resposta || mensagemBase;
 }
 
@@ -196,7 +202,7 @@ async function responderNatural({ evento, fatos = {}, mensagemUsuario = '', hist
         'isso é Markdown e não funciona no WhatsApp) e emojis com moderação. Responda só com a mensagem ' +
         'final, sem comentários sobre a tarefa.';
 
-    const resposta = await chamarGemini(prompt, { timeoutMs: 9000, temperature: 0.8 });
+    const resposta = await chamarGemini(prompt, { timeoutMs: 9000, temperature: 0.8, thinkingBudget: 1, tentativas: 2 });
     return resposta || textoFallback;
 }
 
@@ -239,7 +245,7 @@ async function responderDuvidaNTI(mensagemUsuario, { historico = [], textoFallba
         'Pode usar negrito no formato do WhatsApp (um único asterisco de cada lado, ex: *assim*; NUNCA dois ' +
         'asteriscos) e emojis com moderação. Responda só com a mensagem final, sem comentários sobre a tarefa.';
 
-    const resposta = await chamarGemini(prompt, { timeoutMs: 10000, temperature: 0.3 });
+    const resposta = await chamarGemini(prompt, { timeoutMs: 10000, temperature: 0.3, thinkingBudget: 1, tentativas: 2 });
     return resposta || fallbackPadrao;
 }
 

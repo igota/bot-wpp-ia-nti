@@ -113,6 +113,53 @@ function registrarHistoricoIA(session, mensagemUsuario, respostaBot) {
         session.data.historicoIA = session.data.historicoIA.slice(-6);
     }
 }
+
+// 🔥 Extraído do bloco do STEP 0 pra poder ser chamado tanto de lá quanto do sub-fluxo de
+// dúvida NTI (quando o usuário resolve trocar de assunto no meio de uma conversa livre).
+async function iniciarFluxoSistema(from, session, opcao) {
+    if (opcao === '1') {
+        session.data.sistema = 'GLPI';
+        await client.sendMessage(from,
+            `✅ Sistema: *${session.data.sistema}*\n\n` +
+            `Digite seu *CPF* (apenas números):`
+        );
+        session.step = 1;
+
+    } else if (opcao === '2') {
+        session.data.sistema = 'CONECTA';
+        await client.sendMessage(from,
+            `✅ Sistema: *${session.data.sistema}*\n\n` +
+            `Digite seu *CPF* (apenas números):`
+        );
+        session.step = 1;
+
+    } else if (opcao === '3') {
+        session.data.sistema = 'VITAE';
+
+        await client.sendMessage(from, '⏳ *Preparando ambiente VITAE...* Aguarde um momento.');
+
+        const iniciado = await iniciarNavegador(from);
+
+        if (!iniciado) {
+            await client.sendMessage(from,
+                `❌ *Erro ao iniciar sistema VITAE*\n\n` +
+                `Tente novamente mais tarde.\n\n` +
+                `Digite *MENU* para voltar.`
+            );
+            delete sessions[from];
+            return;
+        }
+
+        await sleep(1000);
+
+        await client.sendMessage(from,
+            `✅ *Sistema VITAE pronto!*\n\n` +
+            `Digite o *CPF* do usuário (apenas números):`
+        );
+
+        session.step = 'STEP_VITAE_CPF';
+    }
+}
 puppeteer.use(StealthPlugin());
 
 // ==================== SESSÕES ====================
@@ -629,7 +676,8 @@ client.on('message', async (message) => {
                     `📋 *PLANILHAS*\n\n` +
                     `1 - REDE COM FIO\n` +
                     `2 - REDE SEM FIO\n` +
-                    `3 - MODELO IMPRESSORA\n\n` +
+                    `3 - MODELO IMPRESSORA\n` +
+                    `4 - SOBREAVISO\n\n` +
                     `Digite o número da opção:`
                 );
                 session.step = 'NTI_MENU_PLANILHAS';
@@ -670,12 +718,50 @@ client.on('message', async (message) => {
                     `Digite o setor:`
                 );
                 session.step = 'NTI_BUSCAR_IMPRESSORA';
+            } else if (body === '4') {
+                // Diferente das outras 3 opções, SOBREAVISO não pede termo de busca - a resposta
+                // é sempre "quem está de sobreaviso hoje", então já dispara a consulta aqui e
+                // permanece no mesmo step (permite digitar 4 de novo pra atualizar).
+                await client.sendMessage(from, `🔍 *Consultando escala de sobreaviso...* Aguarde.`);
+
+                const resultado = await inventarioRede.buscarSobreaviso();
+
+                if (resultado === null) {
+                    await client.sendMessage(from,
+                        `❌ *Busca indisponível no momento.*\n\n` +
+                        `Verifique se a planilha SOBREAVISO está configurada (GOOGLE_SHEETS_ID_SOBREAVISO/GOOGLE_SERVICE_ACCOUNT_KEY_PATH no .env) ou tente novamente mais tarde.\n\n` +
+                        `Digite *@nti* para voltar ao menu.`
+                    );
+                } else if (resultado.abaNaoEncontrada) {
+                    await client.sendMessage(from,
+                        `❌ *Escala de ${resultado.mesEsperado} ainda não disponível.*\n\n` +
+                        `A planilha desse mês ainda não foi criada/preenchida.\n\n` +
+                        `Digite *@nti* para voltar ao menu.`
+                    );
+                } else if (resultado.pessoas.length === 0) {
+                    const dataFmt = resultado.data.toLocaleDateString('pt-BR');
+                    await client.sendMessage(from,
+                        `❌ *Ninguém escalado de sobreaviso hoje (${dataFmt}).*\n\n` +
+                        `Digite *@nti* para voltar ao menu.`
+                    );
+                } else {
+                    const dataFmt = resultado.data.toLocaleDateString('pt-BR');
+                    let msg = `🚨 *SOBREAVISO de hoje (${dataFmt}):*\n\n`;
+                    resultado.pessoas.forEach((p, i) => {
+                        msg += `*${i + 1}.* 👤 *${p.nome}*\n` +
+                            `   Setor: ${p.setor} - ${p.funcao}\n` +
+                            `   Turno: ${p.turno}\n\n`;
+                    });
+                    msg += `Digite *4* de novo para atualizar, ou *@nti* para voltar ao menu.`;
+                    await client.sendMessage(from, msg);
+                }
             } else {
                 await client.sendMessage(from,
                     `📋 *PLANILHAS*\n\n` +
                     `1 - REDE COM FIO\n` +
                     `2 - REDE SEM FIO\n` +
-                    `3 - MODELO IMPRESSORA\n\n` +
+                    `3 - MODELO IMPRESSORA\n` +
+                    `4 - SOBREAVISO\n\n` +
                     `Digite o número da opção:`
                 );
             }
@@ -835,8 +921,8 @@ client.on('message', async (message) => {
                 resultados.forEach((r, i) => {
                     msg += `*${i + 1}.* 📍 *${r.sala || '(sem sala cadastrada)'}*\n` +
                         `   Equipamento: ${r.equipamento || '-'}\n` +
-                        `   IP: ${r.ip}\n` +
-                        `   Setor (aba): ${r.aba}${r.status ? `\n   Status: ${r.status}` : ''}\n\n`;
+                        `   IP: ${r.ip}` +
+                        `${r.status ? `\n   Status: ${r.status}` : ''}\n\n`;
                 });
                 msg += resultados.length === 1
                     ? `Digite *PING* para testar a conectividade desse IP, outro termo para nova busca, ou *@nti* para voltar ao menu.`
@@ -1673,6 +1759,11 @@ client.on('message', async (message) => {
                 });
 
                 registrarHistoricoIA(session, body, resposta);
+                // 🔥 Mantém a conversa neste sub-fluxo em vez de voltar pro STEP 0: sem isso, a
+                // PRÓXIMA mensagem do usuário (ex: uma resposta de acompanhamento como "sim") caía
+                // de novo no classificador de intenção do menu principal, que não reconhece
+                // continuações de conversa e resetava o atendimento pro menu.
+                session.step = 'STEP_DUVIDA_NTI';
                 await client.sendMessage(from, resposta);
                 return;
             }
@@ -1688,53 +1779,9 @@ client.on('message', async (message) => {
                 '- *SAIR* para cancelar atendimento';
             const menuBase = `${menuHeader}\n\n${menuOpcoes}`;
 
-            if (opcaoEfetiva === '1') {
-                session.data.sistema = 'GLPI';
-                await client.sendMessage(from,
-                    `✅ Sistema: *${session.data.sistema}*\n\n` +
-                    `Digite seu *CPF* (apenas números):`
-                );
-                session.step = 1;
+            if (['1', '2', '3'].includes(opcaoEfetiva)) {
+                await iniciarFluxoSistema(from, session, opcaoEfetiva);
 
-            } else if (opcaoEfetiva === '2') {
-                session.data.sistema = 'CONECTA';
-                await client.sendMessage(from,
-                    `✅ Sistema: *${session.data.sistema}*\n\n` +
-                    `Digite seu *CPF* (apenas números):`
-                );
-                session.step = 1;
-
-            } else if (opcaoEfetiva === '3') {
-                session.data.sistema = 'VITAE';
-                
-                // Mostra mensagem de preparação
-                await client.sendMessage(from, '⏳ *Preparando ambiente VITAE...* Aguarde um momento.');
-                
-                // Inicia o navegador (só abre a página de listagem, sem modal)
-                const iniciado = await iniciarNavegador(from);
-                
-                if (!iniciado) {
-                    await client.sendMessage(from, 
-                        `❌ *Erro ao iniciar sistema VITAE*\n\n` +
-                        `Tente novamente mais tarde.\n\n` +
-                        `Digite *MENU* para voltar.`
-                    );
-                    delete sessions[from];
-                    return;
-                }
-                
-                // Aguarda estabilização da página
-                await sleep(1000);
-                
-                // Pede o CPF (modal ainda não existe)
-                await client.sendMessage(from, 
-                    `✅ *Sistema VITAE pronto!*\n\n` +
-                    `Digite o *CPF* do usuário (apenas números):`
-                );
-                
-                session.step = 'STEP_VITAE_CPF';
-                return;
-                
             } else {
                 console.log(`📤 ENVIANDO MENU (STEP 0) PARA ${from}`);
 
@@ -1743,6 +1790,26 @@ client.on('message', async (message) => {
                 const menuNatural = await ia.humanizarMensagem(menuBase);
                 await client.sendMessage(from, menuNatural);
             }
+            return;
+        }
+
+        // ==================== SUB-FLUXO: DÚVIDA NTI (conversa livre) ====================
+        // Mantém o usuário aqui até ele digitar MENU/SAIR (interceptados globalmente antes da
+        // lógica de step) - continuações de conversa (ex: respostas de acompanhamento como "sim",
+        // ou até "1"/"2" respondendo uma pergunta da própria IA) são tratadas como parte da mesma
+        // dúvida, em vez de caírem no classificador de intenção do STEP 0. Um dígito solto aqui NÃO
+        // é interpretado como escolha do Menu Principal - a base de conhecimento já orienta a IA a
+        // dizer "digite MENU" quando quer encaminhar o usuário pra uma opção fixa, então a troca de
+        // fluxo só acontece via o comando MENU (global) seguido da escolha no STEP 0.
+        if (session.step === 'STEP_DUVIDA_NTI') {
+            atualizarAtividade(from);
+
+            const resposta = await ia.responderDuvidaNTI(body, {
+                historico: session.data.historicoIA || []
+            });
+
+            registrarHistoricoIA(session, body, resposta);
+            await client.sendMessage(from, resposta);
             return;
         }
 

@@ -84,6 +84,11 @@ module.exports = {
         modeloImpressora: {
             sheetId: process.env.GOOGLE_SHEETS_ID_IMPRESSORA
             // aba é escolhida em tempo de execução (mês atual: JAN..DEZ), ver inventarioRede.js
+        },
+        sobreaviso: {
+            sheetId: process.env.GOOGLE_SHEETS_ID_SOBREAVISO
+            // aba também é escolhida em tempo de execução (mês atual, com fallback pro nome com
+            // ano quando o mês já foi arquivado), ver inventarioRede.js
         }
     }
 };

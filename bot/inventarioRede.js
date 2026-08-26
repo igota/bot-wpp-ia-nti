@@ -25,7 +25,8 @@ function setConfig(appConfig) {
     FONTES = {
         redeComFio: { sheetId: sheets.redeComFio?.sheetId || null, aba: sheets.redeComFio?.aba || null },
         redeSemFio: { sheetId: sheets.redeSemFio?.sheetId || null, aba: sheets.redeSemFio?.aba || null },
-        modeloImpressora: { sheetId: sheets.modeloImpressora?.sheetId || null }
+        modeloImpressora: { sheetId: sheets.modeloImpressora?.sheetId || null },
+        sobreaviso: { sheetId: sheets.sobreaviso?.sheetId || null }
     };
 
     const status = (nome, fonte) => {
@@ -37,6 +38,7 @@ function setConfig(appConfig) {
     status('REDE COM FIO', FONTES.redeComFio);
     status('REDE SEM FIO', FONTES.redeSemFio);
     status('MODELO IMPRESSORA', FONTES.modeloImpressora);
+    status('SOBREAVISO', FONTES.sobreaviso);
 }
 
 function normalizar(texto) {
@@ -155,7 +157,7 @@ async function buscarEquipamento(termo) {
         resultados = resultados.filter(linha => normalizar(linha.equipamento).startsWith('IMP'));
     }
 
-    return resultados.slice(0, 15);
+    return resultados.slice(0, 30);
 }
 
 // ==================== REDE SEM FIO (dispositivos wifi por Nome/MAC) ====================
@@ -207,7 +209,7 @@ async function buscarRedeSemFio(termo) {
         return palavras.every(palavra => alvo.includes(palavra));
     });
 
-    return resultados.slice(0, 15);
+    return resultados.slice(0, 30);
 }
 
 // ==================== MODELO IMPRESSORA (contador/toner por setor, uma aba por mês) ====================
@@ -300,12 +302,122 @@ async function buscarModeloImpressora(termo) {
             modToner: cache.lookupToner.get(normalizar(registro.equip)) ?? ''
         }));
 
-    return resultados.slice(0, 15);
+    return resultados.slice(0, 30);
+}
+
+// ==================== SOBREAVISO (quem está de plantão agora, uma aba por mês) ====================
+//
+// Grade "SETOR | FUNÇÃO | NOME | 1 | 2 | ... | 31 | TOTAL | TOTAL ORIGINAL" (cabeçalho na linha 5,
+// índice 4) - cada linha é um funcionário, cada coluna de dia guarda o código do turno daquele dia
+// (M1, M2, F = férias, L = licença, ou vazio = não está de sobreaviso). Pela LEGENDA da própria aba:
+//   M1: 17h às 07h do dia seguinte (14h contínuas)
+//   M2: 07h às 07h do dia seguinte (24h contínuas)
+// A consulta é sempre pelo dia de HOJE (data corrente) e traz M1 e M2 juntos - as duas pessoas que
+// cobrem o dia inteiro, não só quem estaria tecnicamente "no turno" na hora exata da consulta.
+//
+// Nomenclatura das abas: o mês corrente (e o seguinte, já planejado) usa só a abreviação de 3
+// letras ("AGO", "SET"); quando o mês vira, alguém arquiva renomeando a aba pra "MES AA" (ex:
+// "JUL 26"). Por isso tentamos a abreviação pura primeiro e caímos pro nome com ano se não existir.
+
+const LABEL_TURNO = { M1: 'M1 (17h às 07h)', M2: 'M2 (07h às 07h, 24h)' };
+const CODIGOS_SOBREAVISO = ['M1', 'M2'];
+
+function candidatosAbaSobreaviso(data) {
+    const abrev = MESES[data.getMonth()];
+    const anoCurto = String(data.getFullYear()).slice(-2);
+    return [abrev, `${abrev} ${anoCurto}`];
+}
+
+// Lê a grade de uma aba de SOBREAVISO - range mais largo que lerAba() porque a grade tem colunas
+// até a AJ (dia 31 + 2 colunas de total, lerAba() só vai até a Z). Tenta cada nome candidato até
+// um funcionar; se nenhum existir, relança o erro da última tentativa (tratado por quem chama).
+async function lerAbaSobreaviso(sheetId, candidatos) {
+    const sheets = getSheetsClient();
+    let ultimoErro;
+    for (const aba of candidatos) {
+        try {
+            const res = await sheets.spreadsheets.values.get({
+                spreadsheetId: sheetId,
+                range: `'${aba}'!A1:AJ60`
+            });
+            return { aba, valores: res.data.values || [] };
+        } catch (error) {
+            ultimoErro = error;
+        }
+    }
+    throw ultimoErro;
+}
+
+// Diferente das outras 3 planilhas (buscas por termo, sujeitas a rajada de mensagens), SOBREAVISO
+// é uma consulta pontual (o usuário escolhe a opção 4 e recebe a resposta na hora) - por isso lê a
+// planilha direto a cada chamada, sem cache, pra sempre refletir edições recentes na escala.
+async function carregarAbaSobreaviso(candidatos) {
+    const { sheetId } = FONTES.sobreaviso;
+    const { aba, valores } = await lerAbaSobreaviso(sheetId, candidatos);
+
+    const diaParaIndice = {};
+    (valores[4] || []).forEach((titulo, i) => {
+        const texto = String(titulo || '').trim();
+        if (/^\d+$/.test(texto)) diaParaIndice[texto] = i;
+    });
+
+    // Linhas de funcionário têm SETOR, FUNÇÃO e NOME preenchidos - isso separa a grade da linha em
+    // branco e do bloco de LEGENDA logo abaixo, sem depender de um número fixo de linhas de dados.
+    const linhas = valores.slice(5)
+        .filter(linha => linha[0] && linha[1] && linha[2])
+        .map(linha => ({ setor: linha[0], funcao: linha[1], nome: linha[2], dias: linha }));
+
+    console.log(`✅ Inventário de rede: ${linhas.length} funcionários lidos da planilha SOBREAVISO (aba ${aba})`);
+    return { diaParaIndice, linhas };
+}
+
+// Identifica quem está de sobreaviso hoje (M1 e M2, o dia inteiro). Diferente das outras buscas,
+// não recebe termo - é sempre a consulta da data atual.
+async function buscarSobreaviso() {
+    if (!FONTES?.sobreaviso?.sheetId || !AUTH_CONFIG?.keyPath) return null;
+
+    const diaAlvo = new Date();
+    const codigos = CODIGOS_SOBREAVISO;
+    const candidatos = candidatosAbaSobreaviso(diaAlvo);
+
+    let aba;
+    try {
+        aba = await carregarAbaSobreaviso(candidatos);
+    } catch (error) {
+        const mensagemApi = error.response?.data?.error?.message || error.message;
+        // A API do Sheets retorna 400 quando a aba pedida não existe - é o caso normal de "mês
+        // ainda não criado/nomeado", não um erro de configuração.
+        if (error.code === 400 || /unable to parse range/i.test(mensagemApi)) {
+            return { abaNaoEncontrada: true, mesEsperado: candidatos[0] };
+        }
+        console.warn(`⚠️ Inventário de rede: falha ao ler a planilha SOBREAVISO (${mensagemApi})`);
+        return null;
+    }
+
+    const indiceDia = aba.diaParaIndice[String(diaAlvo.getDate())];
+    if (indiceDia === undefined) return { data: diaAlvo, codigos, pessoas: [] };
+
+    const pessoas = [];
+    for (const linha of aba.linhas) {
+        const codigo = String(linha.dias[indiceDia] || '').trim().toUpperCase();
+        if (codigos.includes(codigo)) {
+            pessoas.push({
+                setor: linha.setor,
+                funcao: linha.funcao,
+                nome: linha.nome,
+                codigo,
+                turno: LABEL_TURNO[codigo] || codigo
+            });
+        }
+    }
+
+    return { data: diaAlvo, codigos, pessoas };
 }
 
 module.exports = {
     setConfig,
     buscarEquipamento,
     buscarRedeSemFio,
-    buscarModeloImpressora
+    buscarModeloImpressora,
+    buscarSobreaviso
 };
