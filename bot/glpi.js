@@ -330,8 +330,17 @@ async function buscarLoginPorNome(nomeCompleto) {
         }
     }
     
-    if (melhorLogin && melhorScore >= 0.65) return melhorLogin;
-    console.log(`❌ Nenhum usuário encontrado`);
+    // 🔥 SEM fallback de "melhor esforço" abaixo de 80%: nomes com primeiro nome + sobrenome
+    // genérico (ex: "Junior") iguais mas partes do meio completamente diferentes já pontuaram até
+    // 71% aqui - o suficiente pra um fallback de 65% devolver o login de uma pessoa TOTALMENTE
+    // diferente. Como esse login alimenta o reset de senha do GLPI/AD, um match errado reseta a
+    // conta da pessoa errada sem consentimento - mais seguro dizer "não encontrado" (o funcionário
+    // é orientado a contatar o suporte manualmente) do que arriscar isso.
+    if (melhorLogin) {
+        console.log(`❌ Nenhum usuário com confiança suficiente (melhor candidato: ${melhorLogin}, score: ${Math.round(melhorScore * 100)}% - abaixo do mínimo de 80%)`);
+    } else {
+        console.log(`❌ Nenhum usuário encontrado`);
+    }
     return null;
 }
 
