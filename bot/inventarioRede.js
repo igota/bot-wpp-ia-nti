@@ -1,6 +1,7 @@
-// inventarioRede.js - Busca em planilhas de inventário (Google Sheets) do menu oculto @nti/@nac:
-// REDE COM FIO (IP de computador/impressora), REDE SEM FIO (dispositivos wifi por Nome/MAC) e
-// MODELO IMPRESSORA (dados de contador/toner por setor, uma aba por mês).
+// inventarioRede.js - Busca em planilhas de inventário (Google Sheets): REDE COM FIO (IP de
+// computador/impressora), REDE SEM FIO (dispositivos wifi por Nome/MAC), MODELO IMPRESSORA (dados
+// de contador/toner por setor, uma aba por mês) e SOBREAVISO, todas do menu oculto @nti/@nac; e
+// RAMAIS (telefone por setor), essa aberta a qualquer funcionário pelo menu principal do bot.
 //
 // Segurança: a busca é 100% determinística (sem IA) - o dado retornado é sempre uma linha exata
 // da planilha, então aqui não corremos o risco de o modelo "aproximar" ou inventar um valor. As
@@ -18,6 +19,7 @@ let FONTES = null; // { redeComFio, redeSemFio, modeloImpressora }, cada uma com
 let cacheRedeComFio = { linhas: [], carregadoEm: 0 };
 let cacheRedeSemFio = { linhas: [], carregadoEm: 0 };
 let cacheImpressora = { aba: null, registrosSetor: [], lookupToner: new Map(), carregadoEm: 0 };
+let cacheRamais = { linhas: [], carregadoEm: 0 };
 
 function setConfig(appConfig) {
     const sheets = appConfig?.googleSheets || {};
@@ -26,7 +28,8 @@ function setConfig(appConfig) {
         redeComFio: { sheetId: sheets.redeComFio?.sheetId || null, aba: sheets.redeComFio?.aba || null },
         redeSemFio: { sheetId: sheets.redeSemFio?.sheetId || null, aba: sheets.redeSemFio?.aba || null },
         modeloImpressora: { sheetId: sheets.modeloImpressora?.sheetId || null },
-        sobreaviso: { sheetId: sheets.sobreaviso?.sheetId || null }
+        sobreaviso: { sheetId: sheets.sobreaviso?.sheetId || null },
+        ramais: { sheetId: sheets.ramais?.sheetId || null, aba: sheets.ramais?.aba || null }
     };
 
     const status = (nome, fonte) => {
@@ -39,6 +42,7 @@ function setConfig(appConfig) {
     status('REDE SEM FIO', FONTES.redeSemFio);
     status('MODELO IMPRESSORA', FONTES.modeloImpressora);
     status('SOBREAVISO', FONTES.sobreaviso);
+    status('RAMAIS', FONTES.ramais);
 }
 
 function normalizar(texto) {
@@ -414,10 +418,77 @@ async function buscarSobreaviso() {
     return { data: diaAlvo, codigos, pessoas };
 }
 
+// ==================== RAMAIS (telefone por setor - aberto a qualquer funcionário) ====================
+//
+// Aba "LISTA EM UPDATE": linha 1 é um título solto ("LISTA TELEFÔNICA - RAMAIS EM ORDEM NUMÉRICA"),
+// cabeçalho de verdade na linha 2 (RAMAL | SETOR | LOCALIZAÇÃO | SUBLOCALIZAÇÃO). O mesmo SETOR se
+// repete em várias linhas (um ramal por sublocalização), então a busca considera as 3 colunas de
+// texto - não só SETOR - pra deixar o funcionário refinar (ex: "farmácia central").
+
+async function carregarRamais() {
+    const { sheetId, aba } = FONTES.ramais;
+    const { cabecalhos, linhas: linhasBrutas } = await lerAba(sheetId, aba, 1);
+    const indices = indiceColunas(cabecalhos);
+    const iRamal = nesimoIndice(indices, 'RAMAL');
+    const iSetor = nesimoIndice(indices, 'SETOR');
+    const iLocalizacao = nesimoIndice(indices, 'LOCALIZACAO');
+    const iSublocalizacao = nesimoIndice(indices, 'SUBLOCALIZACAO');
+
+    const linhas = [];
+    for (const linha of linhasBrutas) {
+        const ramal = iRamal !== undefined ? (linha[iRamal] || '') : '';
+        const setor = iSetor !== undefined ? (linha[iSetor] || '') : '';
+        if (!ramal || !setor) continue;
+        linhas.push({
+            ramal,
+            setor,
+            localizacao: iLocalizacao !== undefined ? (linha[iLocalizacao] || '') : '',
+            sublocalizacao: iSublocalizacao !== undefined ? (linha[iSublocalizacao] || '') : ''
+        });
+    }
+    return linhas;
+}
+
+async function garantirCacheRamais() {
+    const expirado = Date.now() - cacheRamais.carregadoEm > CACHE_TTL_MS;
+    if (!expirado && cacheRamais.linhas.length) return cacheRamais.linhas;
+
+    cacheRamais = { linhas: await carregarRamais(), carregadoEm: Date.now() };
+    console.log(`✅ Inventário de rede: ${cacheRamais.linhas.length} ramais carregados da planilha RAMAIS`);
+    return cacheRamais.linhas;
+}
+
+// Busca por texto livre (ex: "farmácia", "uti adulto", "nac faturamento") em RAMAL, SETOR,
+// LOCALIZAÇÃO e SUBLOCALIZAÇÃO. Todas as palavras do termo precisam aparecer (em qualquer um dos
+// quatro campos) - incluir RAMAL permite que o funcionário também digite direto o número do ramal
+// (ex: "9312") pra descobrir de quem é.
+async function buscarRamal(termo) {
+    if (!FONTES?.ramais?.sheetId || !AUTH_CONFIG?.keyPath) return null;
+
+    let linhas;
+    try {
+        linhas = await garantirCacheRamais();
+    } catch (error) {
+        console.warn(`⚠️ Inventário de rede: falha ao ler a planilha RAMAIS (${error.response?.data?.error?.message || error.message})`);
+        return null;
+    }
+
+    const palavras = normalizar(termo).split(/\s+/).filter(Boolean);
+    if (!palavras.length) return [];
+
+    const resultados = linhas.filter(linha => {
+        const alvo = normalizar(`${linha.ramal} ${linha.setor} ${linha.localizacao} ${linha.sublocalizacao}`);
+        return palavras.every(palavra => alvo.includes(palavra));
+    });
+
+    return resultados.slice(0, 30);
+}
+
 module.exports = {
     setConfig,
     buscarEquipamento,
     buscarRedeSemFio,
     buscarModeloImpressora,
-    buscarSobreaviso
+    buscarSobreaviso,
+    buscarRamal
 };

@@ -67,8 +67,9 @@ module.exports = {
         ativo: process.env.IA_ATIVA !== 'false'
     },
 
-    // Planilhas de inventário (IPs, dispositivos wifi, modelos de impressora) - uso interno @nti/@nac
-    // Todas as 3 planilhas são lidas pela mesma service account (keyPath compartilhado).
+    // Planilhas de inventário (IPs, dispositivos wifi, modelos de impressora, sobreaviso - uso
+    // interno @nti/@nac; ramais - aberto a qualquer funcionário via menu principal).
+    // Todas são lidas pela mesma service account (keyPath compartilhado).
     googleSheets: {
         keyPath: process.env.GOOGLE_SERVICE_ACCOUNT_KEY_PATH
             ? path.join(__dirname, process.env.GOOGLE_SERVICE_ACCOUNT_KEY_PATH)
@@ -89,6 +90,10 @@ module.exports = {
             sheetId: process.env.GOOGLE_SHEETS_ID_SOBREAVISO
             // aba também é escolhida em tempo de execução (mês atual, com fallback pro nome com
             // ano quando o mês já foi arquivado), ver inventarioRede.js
+        },
+        ramais: {
+            sheetId: process.env.GOOGLE_SHEETS_ID_RAMAIS,
+            aba: 'LISTA EM UPDATE'
         }
     }
 };

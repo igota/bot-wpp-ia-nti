@@ -196,6 +196,7 @@ async function chamarGemini(prompt, { timeoutMs = 6000, temperature = 0.4, tenta
 //
 // Códigos possíveis:
 //   '1' = GLPI, '2' = CONECTA, '3' = VITAE (mesmas opções do menu numérico)
+//   'RAMAL' = quer o ramal/telefone de um setor (bot.js remapeia pra '4', mesma opção do menu numérico)
 //   'EMAIL_SENHA' = esqueceu/quer resetar a senha do e-mail corporativo (não é feito por nenhum sistema aqui)
 //   'EMAIL_NOVO'  = quer cadastrar um e-mail novo (não é feito por nenhum sistema aqui)
 async function interpretarOpcaoMenu(mensagemUsuario) {
@@ -210,6 +211,9 @@ async function interpretarOpcaoMenu(mensagemUsuario) {
         'errado"). NÃO use este código para problemas de LOGIN/ACESSO ao Vitae (não consigo entrar, não consigo ' +
         'acessar, esqueci a senha, dá erro ao tentar entrar) - isso é DUVIDA_NTI, pois antes de mexer no e-mail é ' +
         'preciso entender qual é o problema\n' +
+        'RAMAL = pedido para descobrir o RAMAL/TELEFONE de um setor específico do hospital, OU o setor ' +
+        'de um número de ramal já em mãos (ex: "qual o ramal da farmácia", "telefone do RH", ' +
+        '"preciso ligar pra UTI, qual o número", "de quem é o ramal 9312")\n' +
         'EMAIL_SENHA = o usuário esqueceu a senha do e-mail corporativo (Outlook/e-mail) ou quer resetar/redefinir essa senha\n' +
         'EMAIL_NOVO = o usuário quer cadastrar/criar um e-mail corporativo novo (que ainda não existe)\n' +
         'DUVIDA_NTI = qualquer outra dúvida sobre normas/procedimentos internos do NTI do hospital - ex: voucher de ' +
@@ -224,7 +228,7 @@ async function interpretarOpcaoMenu(mensagemUsuario) {
         'permitido" em qualquer sistema, ' +
         'ou qualquer outro procedimento administrativo do NTI que não seja um dos sistemas acima\n\n' +
         `Mensagem do usuário: "${mensagemUsuario}"\n\n` +
-        'Responda com APENAS um destes tokens: 1, 2, 3, EMAIL_SENHA, EMAIL_NOVO, DUVIDA_NTI, ou 0 se não ' +
+        'Responda com APENAS um destes tokens: 1, 2, 3, RAMAL, EMAIL_SENHA, EMAIL_NOVO, DUVIDA_NTI, ou 0 se não ' +
         'for possível identificar a intenção com confiança (mensagem ambígua ou fora de contexto, incluindo ' +
         'cumprimentos/saudações como oi, olá, bom dia, tudo bem?, etc. sem pedir nada específico). ' +
         'Não escreva mais nada além do token.';
@@ -233,7 +237,7 @@ async function interpretarOpcaoMenu(mensagemUsuario) {
     if (!resposta) return null;
 
     const token = resposta.trim().split(/\s+/)[0].toUpperCase();
-    return ['1', '2', '3', 'EMAIL_SENHA', 'EMAIL_NOVO', 'DUVIDA_NTI'].includes(token) ? token : null;
+    return ['1', '2', '3', 'RAMAL', 'EMAIL_SENHA', 'EMAIL_NOVO', 'DUVIDA_NTI'].includes(token) ? token : null;
 }
 
 // Reescreve uma mensagem padrão do bot para soar mais natural, preservando todo o conteúdo factual

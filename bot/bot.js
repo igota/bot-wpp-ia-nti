@@ -1696,7 +1696,8 @@ async function processarMensagem(message) {
                 'Bem-Vindo ao Assistente de Sistemas do NTI\n\n' +
                 '1️⃣ *GLPI (Usuário Windows)* - Alterar Senha \n' +
                 '2️⃣ *CONECTA* - Alterar Senha \n' +
-                '3️⃣ *VITAE* - Alterar Email \n\n' +
+                '3️⃣ *VITAE* - Alterar Email \n' +
+                '4️⃣ *RAMAIS* - Consultar telefone de um setor \n\n' +
                 'Digite o número da opção:\n\n' +
                 '- *MENU* para voltar ao menu principal\n' +
                 '- *SAIR* para cancelar atendimento';
@@ -1719,17 +1720,20 @@ async function processarMensagem(message) {
             let opcaoEfetiva = body;
             let interpretadaPorIA = false;
 
-            if (!['1', '2', '3'].includes(opcaoEfetiva)) {
+            if (!['1', '2', '3', '4'].includes(opcaoEfetiva)) {
                 const interpretada = await ia.interpretarOpcaoMenu(body);
                 if (interpretada) {
                     console.log(`🤖 IA interpretou "${body}" como ${interpretada}`);
-                    opcaoEfetiva = interpretada;
+                    // RAMAL não é um "sistema" (não pede CPF nem tem fluxo próprio de senha) - mas
+                    // reaproveita a mesma opção numérica '4' do menu pra manter um único lugar
+                    // tratando essa escolha (ver bloco '4' logo abaixo).
+                    opcaoEfetiva = interpretada === 'RAMAL' ? '4' : interpretada;
                     interpretadaPorIA = true;
                 }
             }
 
-            if (interpretadaPorIA && ['1', '2', '3'].includes(opcaoEfetiva)) {
-                const nomesSistema = { '1': 'GLPI', '2': 'CONECTA', '3': 'VITAE' };
+            if (interpretadaPorIA && ['1', '2', '3', '4'].includes(opcaoEfetiva)) {
+                const nomesSistema = { '1': 'GLPI', '2': 'CONECTA', '3': 'VITAE', '4': 'RAMAIS' };
                 await client.sendMessage(from, `🤖 Entendi! Vamos te ajudar com o *${nomesSistema[opcaoEfetiva]}*.`);
             }
 
@@ -1802,6 +1806,18 @@ async function processarMensagem(message) {
                 return;
             }
 
+            // 🔥 RAMAIS: diferente de GLPI/CONECTA/VITAE, não é um "sistema" com fluxo de senha -
+            // é uma busca determinística (sem IA) na planilha de ramais, aberta a qualquer
+            // funcionário (sem allowlist, diferente das outras planilhas do menu oculto @nti/@nac).
+            if (opcaoEfetiva === '4') {
+                await client.sendMessage(from,
+                    `☎️ *RAMAIS*\n\n` +
+                    `Digite o nome do *setor* (ex: Farmácia, UTI, RH) ou o *número do ramal* que você quer consultar:`
+                );
+                session.step = 'STEP_RAMAL_BUSCA';
+                return;
+            }
+
             if (['1', '2', '3'].includes(opcaoEfetiva)) {
                 await iniciarFluxoSistema(from, session, opcaoEfetiva);
 
@@ -1812,6 +1828,43 @@ async function processarMensagem(message) {
                 // Se a IA falhar/estiver desativada, envia o texto original (menuBase).
                 const menuNatural = await ia.humanizarMensagem(menuBase);
                 await client.sendMessage(from, menuNatural);
+            }
+            return;
+        }
+
+        // ==================== STEP_RAMAL_BUSCA: busca de ramal por setor ====================
+        // Busca 100% determinística na planilha (sem IA) - mesmo padrão de segurança das buscas do
+        // menu oculto @nti/@nac (ver inventarioRede.js): o resultado é sempre uma linha exata da
+        // planilha. Fica no mesmo step pra permitir nova busca em seguida, sem voltar ao menu.
+        if (session.step === 'STEP_RAMAL_BUSCA') {
+            atualizarAtividade(from);
+            const termo = body.trim();
+
+            await client.sendMessage(from, `🔍 *Buscando na planilha...* Aguarde.`);
+
+            const resultados = await inventarioRede.buscarRamal(termo);
+
+            if (resultados === null) {
+                await client.sendMessage(from,
+                    `❌ *Busca indisponível no momento.*\n\n` +
+                    `Tente novamente mais tarde ou contate o NTI (ramal 9385).\n\n` +
+                    `Digite *MENU* para voltar ao início.`
+                );
+            } else if (resultados.length === 0) {
+                await client.sendMessage(from,
+                    `❌ *Nenhum ramal encontrado para "${termo}".*\n\n` +
+                    `Tente com outro termo (ex: só o nome do setor).\n\n` +
+                    `Digite outro termo, ou *MENU* para voltar ao início.`
+                );
+            } else {
+                let msg = `☎️ *${resultados.length} ramal(is) para "${termo}":*\n\n`;
+                resultados.forEach((r, i) => {
+                    msg += `*${i + 1}.* 📞 *${r.ramal}* - ${r.setor}` +
+                        `${r.localizacao ? `\n   ${r.localizacao}` : ''}` +
+                        `${r.sublocalizacao ? ` - ${r.sublocalizacao}` : ''}\n\n`;
+                });
+                msg += `Digite outro termo para nova busca, ou *MENU* para voltar ao início.`;
+                await client.sendMessage(from, msg);
             }
             return;
         }
