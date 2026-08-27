@@ -5,8 +5,9 @@
 //
 // 🔥 MODO TESTE: por enquanto o arquivo de contatos só tem "Igor Maciel de Sousa" cadastrado, então
 // só ele recebe mensagem de verdade - qualquer outra pessoa escalada é ignorada (só loga). Pra
-// habilitar o resto da equipe, basta adicionar o nome (exatamente como aparece na planilha) e o
-// número de WhatsApp nesse JSON - não precisa mexer em código.
+// habilitar o resto da equipe, basta adicionar o nome (exatamente como aparece na planilha), o
+// número de WhatsApp e o gênero ("M" ou "F") nesse JSON - não precisa mexer em código. Formato:
+// { "Nome Completo": { "numero": "88999999999", "genero": "M" } }
 
 const fs = require('fs');
 const path = require('path');
@@ -15,9 +16,14 @@ const inventarioRede = require('./inventarioRede');
 const CAMINHO_CONTATOS = path.join(__dirname, 'json', 'sobreaviso_contatos.json');
 const HORARIOS_ENVIO = ['08:00', '15:55'];
 
+// {termo} vira "bixinha" (genero: "F") ou "bixin" (qualquer outro valor, default "M").
 const MENSAGEM =
-    'Eiii {nome}, não esquece de levar o sobreaviso, hoje é tu viu bixin! Coloca na bolsa. ' +
+    'Eiii {nome}, não esquece de levar o sobreaviso, hoje é tu viu {termo}! Coloca na bolsa. ' +
     'E verifica se não tá me levando kkkk. Vlw, flw. 😂';
+
+function termoPorGenero(genero) {
+    return (genero || '').toUpperCase() === 'F' ? 'bixinha' : 'bixin';
+}
 
 function carregarContatos() {
     try {
@@ -68,19 +74,21 @@ async function verificarEEnviar(client) {
 
     const contatos = carregarContatos();
     const contatosNormalizados = {};
-    for (const [nome, numero] of Object.entries(contatos)) {
-        contatosNormalizados[normalizarNome(nome)] = numero;
+    for (const [nome, contato] of Object.entries(contatos)) {
+        contatosNormalizados[normalizarNome(nome)] = contato;
     }
 
     for (const pessoa of resultado.pessoas) {
-        const numero = contatosNormalizados[normalizarNome(pessoa.nome)];
-        if (!numero) {
+        const contato = contatosNormalizados[normalizarNome(pessoa.nome)];
+        if (!contato?.numero) {
             console.log(`ℹ️ Sobreaviso: ${pessoa.nome} está de sobreaviso hoje, mas não tem número cadastrado (modo teste) - não enviado`);
             continue;
         }
 
-        const texto = MENSAGEM.replace('{nome}', primeiroNome(pessoa.nome));
-        const enviado = await enviarParaNumero(client, numero, texto);
+        const texto = MENSAGEM
+            .replace('{nome}', primeiroNome(pessoa.nome))
+            .replace('{termo}', termoPorGenero(contato.genero));
+        const enviado = await enviarParaNumero(client, contato.numero, texto);
         console.log(enviado
             ? `✅ Sobreaviso: mensagem enviada pra ${pessoa.nome} (${pessoa.turno})`
             : `⚠️ Sobreaviso: falha ao enviar mensagem pra ${pessoa.nome}`);
