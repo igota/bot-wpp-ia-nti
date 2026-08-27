@@ -6,8 +6,13 @@
 // 🔥 MODO TESTE: por enquanto o arquivo de contatos só tem "Igor Maciel de Sousa" cadastrado, então
 // só ele recebe mensagem de verdade - qualquer outra pessoa escalada é ignorada (só loga). Pra
 // habilitar o resto da equipe, basta adicionar o nome (exatamente como aparece na planilha), o
-// número de WhatsApp e o gênero ("M" ou "F") nesse JSON - não precisa mexer em código. Formato:
-// { "Nome Completo": { "numero": "88999999999", "genero": "M" } }
+// número de WhatsApp e o gênero ("M" ou "F") nesse JSON - não precisa mexer em código. "apelido" é
+// opcional (usado na mensagem no lugar do primeiro nome, ex: "Bibia" em vez de "Ana"); se omitido,
+// usa o primeiro nome de "Nome Completo". Formato:
+// { "Nome Completo": { "numero": "88999999999", "genero": "M", "apelido": "Apelido" } }
+//
+// Envia só de segunda a sexta - sábado e domingo nunca manda mensagem, mesmo que a planilha marque
+// alguém de sobreaviso nesses dias (ver ehDiaUtil em verificarEEnviar).
 
 const fs = require('fs');
 const path = require('path');
@@ -44,6 +49,13 @@ function primeiroNome(nomeCompleto) {
     return (nomeCompleto || '').trim().split(/\s+/)[0] || nomeCompleto;
 }
 
+// Fuso fixo (America/Fortaleza) em vez de confiar no relógio/timezone local do servidor - mesmo
+// critério já usado em ia.js pro horário de expediente do NTI.
+function ehDiaUtil() {
+    const diaSemana = new Intl.DateTimeFormat('en-US', { timeZone: 'America/Fortaleza', weekday: 'short' }).format(new Date());
+    return !['Sat', 'Sun'].includes(diaSemana);
+}
+
 // Resolve o número (formato livre, ex: "88999290293") pro ID de WhatsApp de verdade antes de
 // mandar - client.getNumberId confirma que o número existe no WhatsApp e devolve o formato exato
 // que o client.sendMessage espera (evita mandar às cegas pra um JID montado na mão).
@@ -66,6 +78,11 @@ async function enviarParaNumero(client, numero, texto) {
 }
 
 async function verificarEEnviar(client) {
+    if (!ehDiaUtil()) {
+        console.log('ℹ️ Sobreaviso: hoje é sábado ou domingo - envio automático só de segunda a sexta, nenhuma mensagem enviada');
+        return;
+    }
+
     const resultado = await inventarioRede.buscarSobreaviso();
     if (!resultado || resultado.abaNaoEncontrada || !resultado.pessoas?.length) {
         console.log('ℹ️ Sobreaviso: nenhum sobreaviso encontrado pra hoje (ou planilha indisponível) - nenhuma mensagem enviada');
@@ -86,7 +103,7 @@ async function verificarEEnviar(client) {
         }
 
         const texto = MENSAGEM
-            .replace('{nome}', primeiroNome(pessoa.nome))
+            .replace('{nome}', contato.apelido || primeiroNome(pessoa.nome))
             .replace('{termo}', termoPorGenero(contato.genero));
         const enviado = await enviarParaNumero(client, contato.numero, texto);
         console.log(enviado
