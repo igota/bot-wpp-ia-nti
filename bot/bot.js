@@ -1696,8 +1696,7 @@ async function processarMensagem(message) {
                 'Bem-Vindo ao Assistente de Sistemas do NTI\n\n' +
                 '1️⃣ *GLPI (Usuário Windows)* - Alterar Senha \n' +
                 '2️⃣ *CONECTA* - Alterar Senha \n' +
-                '3️⃣ *VITAE* - Alterar Email \n' +
-                '4️⃣ *RAMAIS* - Consultar telefone de um setor \n\n' +
+                '3️⃣ *VITAE* - Alterar Email \n\n' +
                 'Digite o número da opção:\n\n' +
                 '- *MENU* para voltar ao menu principal\n' +
                 '- *SAIR* para cancelar atendimento';
@@ -1720,13 +1719,13 @@ async function processarMensagem(message) {
             let opcaoEfetiva = body;
             let interpretadaPorIA = false;
 
-            if (!['1', '2', '3', '4'].includes(opcaoEfetiva)) {
+            if (!['1', '2', '3'].includes(opcaoEfetiva)) {
                 const interpretada = await ia.interpretarOpcaoMenu(body);
                 if (interpretada) {
                     console.log(`🤖 IA interpretou "${body}" como ${interpretada}`);
-                    // RAMAL não é um "sistema" (não pede CPF nem tem fluxo próprio de senha) - mas
-                    // reaproveita a mesma opção numérica '4' do menu pra manter um único lugar
-                    // tratando essa escolha (ver bloco '4' logo abaixo).
+                    // RAMAL não aparece no menu numérico (só é acessível quando o funcionário
+                    // menciona em texto livre, ex: "qual o ramal da farmácia") - internamente
+                    // reaproveita o código '4' só pra cair no mesmo bloco de tratamento abaixo.
                     opcaoEfetiva = interpretada === 'RAMAL' ? '4' : interpretada;
                     interpretadaPorIA = true;
                 }
