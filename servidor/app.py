@@ -1,6 +1,7 @@
 import subprocess
 import base64
 import json
+import xml.etree.ElementTree as ET
 from flask import Flask, request, jsonify, send_file
 from flask_cors import CORS
 import os
@@ -123,6 +124,38 @@ def encode_ps_command(command):
     encoded = base64.b64encode(command.encode('utf-16le')).decode('ascii')
     return encoded
 
+def limpar_stream_clixml(bruto):
+    """Extrai só as mensagens de erro/aviso reais de uma saída CLIXML do
+    PowerShell, descartando o stream de "progress" (barra de progresso do
+    Invoke-Command) que aparece em TODA execução via -EncodedCommand, mesmo
+    quando o comando é bem-sucedido - sem isso, `stderr` nunca vem vazio e o
+    código que escolhe a mensagem de erro (`stderr or stdout`) nunca chega a
+    olhar o stdout, que é onde ferramentas externas como net.exe realmente
+    escrevem o motivo do erro (ex: "Access is denied").
+    """
+    if not bruto or '<Objs' not in bruto:
+        return (bruto or '').strip()
+
+    ns = {'ps': 'http://schemas.microsoft.com/powershell/2004/04'}
+    try:
+        root = ET.fromstring(bruto[bruto.index('<Objs'):])
+    except ET.ParseError:
+        return bruto.strip()
+
+    mensagens = []
+    for obj in root.findall('ps:Obj', ns):
+        stream = (obj.get('S') or '').lower()
+        if stream in ('progress', 'verbose', 'debug', 'information'):
+            continue
+        to_string = obj.find('ps:ToString', ns)
+        texto = (to_string.text or '').strip() if to_string is not None else ''
+        if not texto:
+            texto = ' '.join(t.strip() for t in obj.itertext() if t.strip())
+        if texto:
+            mensagens.append(texto)
+
+    return '\n'.join(mensagens)
+
 def run_powershell_with_creds(script_block, arg_list=None, timeout=60):
     """Executa um script PowerShell com credenciais de domínio.
 
@@ -146,7 +179,8 @@ def run_powershell_with_creds(script_block, arg_list=None, timeout=60):
     ps_command = f'''
     $securePass = ConvertTo-SecureString '{ad_pass_escaped}' -AsPlainText -Force
     $cred = New-Object System.Management.Automation.PSCredential('{DOMAIN}\\{AD_USER}', $securePass)
-    $remoteArgs = @(ConvertFrom-Json ([System.Text.Encoding]::UTF8.GetString([System.Convert]::FromBase64String('{args_b64}'))))
+    $parsedArgs = ConvertFrom-Json ([System.Text.Encoding]::UTF8.GetString([System.Convert]::FromBase64String('{args_b64}')))
+    $remoteArgs = @($parsedArgs)
     Invoke-Command -ComputerName {AD_SERVER} -Credential $cred -ScriptBlock {{ {script_block} }} -ArgumentList $remoteArgs
     '''
 
@@ -174,7 +208,7 @@ def run_powershell_with_creds(script_block, arg_list=None, timeout=60):
         return {
             'success': result.returncode == 0,
             'stdout': stdout.strip(),
-            'stderr': result.stderr,
+            'stderr': limpar_stream_clixml(result.stderr),
             'returncode': result.returncode
         }
     except subprocess.TimeoutExpired:
