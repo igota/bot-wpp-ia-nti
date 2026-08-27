@@ -1897,6 +1897,24 @@ async function processarMensagem(message) {
                 }
             }
 
+            // 🔥 RAMAL: pergunta sobre ramal/telefone no MEIO da conversa (não só na primeira
+            // mensagem, que já passa pelo classificador do STEP 0) também precisa cair na busca -
+            // base_conhecimento_nti.md não tem esse dado (vem de planilha), então sem isso a IA de
+            // dúvida geral só diria "não encontrei orientação específica". Só chama a IA quando
+            // essas palavras aparecem, pra não gastar um round-trip extra em toda mensagem do
+            // sub-fluxo.
+            if (/\b(ramal|ramais|telefone)\b/i.test(body)) {
+                const interpretada = await ia.interpretarOpcaoMenu(body);
+                if (interpretada === 'RAMAL') {
+                    await client.sendMessage(from,
+                        `☎️ *RAMAIS*\n\n` +
+                        `Digite o nome do *setor* (ex: Farmácia, UTI, RH) ou o *número do ramal* que você quer consultar:`
+                    );
+                    session.step = 'STEP_RAMAL_BUSCA';
+                    return;
+                }
+            }
+
             const resposta = await ia.responderDuvidaNTI(body, {
                 historico: session.data.historicoIA || []
             });

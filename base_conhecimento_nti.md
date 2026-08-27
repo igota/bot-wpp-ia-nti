@@ -244,11 +244,13 @@ Perguntar de forma objetiva:
 
 > "Qual é o modelo da impressora?"
 >
-> 1. FS-1370DN  
-> 2. P2040DW / M2040DN  
-> 3. P3055DN / M3145IDN
+> 1. FS-1370DN
+> 2. P2040DW
+> 3. M2040DN
+> 4. P3055DN
+> 5. M3145IDN
 
-A IA deve apresentar somente essas 3 opções e aguardar a resposta antes de continuar.
+A IA deve apresentar somente essas 5 opções (uma por modelo exato) e aguardar a resposta antes de continuar.
 
 ### FS-1370DN
 
@@ -264,76 +266,78 @@ Se o problema for papel preso, orientar o funcionário a utilizar o vídeo de pa
 
 Se o problema for troca de toner, informar que o toner utilizado é o **modelo 172** e apresentar o vídeo de troca de toner (não o de papel preso).
 
-### P2040DW / M2040DN
-
-São DOIS modelos de impressora diferentes, cada um com toner diferente. Antes de informar
-qualquer modelo de toner, perguntar:
-
-> "É a impressora P2040DW ou M2040DN?"
-
-Aguardar a resposta antes de continuar. Nunca informar os toners de P2040DW e M2040DN juntos
-na mesma resposta - só o modelo correspondente à impressora identificada.
-
-#### P2040DW
+### P2040DW
 
 **Modelo do toner:** 1162
 
-#### M2040DN
-
-**Modelos de toner:** 1175 / 1172
-
-**Vídeo de referência para P2040DW / M2040DN (papel preso):**
+**Vídeo de referência (papel preso):**
 https://drive.google.com/file/d/1DIVYhLGXg863AfYsVsrMPXDy7hZQErLq/view?usp=drive_link
 
-**Vídeo de referência para P2040DW / M2040DN (troca de toner):**
+**Vídeo de referência (troca de toner):**
 https://drive.google.com/file/d/1kL3G0zcGpRv4UDSJW_q-JZnVmbvi864-/view?usp=drive_link
 
 Se o problema for papel preso, orientar o funcionário a utilizar o vídeo de papel preso como referência para remoção do papel.
 
-Se o problema for troca de toner, informar somente o modelo correspondente à impressora identificada e apresentar o vídeo de troca de toner (não o de papel preso).
+Se o problema for troca de toner, informar que o toner utilizado é o **modelo 1162** e apresentar o vídeo de troca de toner (não o de papel preso).
 
-### P3055DN / M3145IDN
+### M2040DN
 
-São DOIS modelos de impressora diferentes, cada um com toner diferente. Antes de informar
-qualquer modelo de toner, perguntar:
+**Modelos de toner:** 1175 / 1172
 
-> "É a impressora P3055DN ou M3145IDN?"
+**Vídeo de referência (papel preso):**
+https://drive.google.com/file/d/1DIVYhLGXg863AfYsVsrMPXDy7hZQErLq/view?usp=drive_link
 
-Aguardar a resposta antes de continuar. Nunca informar os toners de P3055DN e M3145IDN juntos
-na mesma resposta - só o(s) modelo(s) correspondente(s) à impressora identificada.
+**Vídeo de referência (troca de toner):**
+https://drive.google.com/file/d/1kL3G0zcGpRv4UDSJW_q-JZnVmbvi864-/view?usp=drive_link
 
-#### P3055DN
+Se o problema for papel preso, orientar o funcionário a utilizar o vídeo de papel preso como referência para remoção do papel.
+
+Se o problema for troca de toner, informar os modelos de toner **1175 / 1172** e apresentar o vídeo de troca de toner (não o de papel preso).
+
+### P3055DN
 
 **Modelos de toner:** 3162 / 3182
 
-#### M3145IDN
-
-**Modelo do toner:** 3162
-
-**Vídeo de referência para P3055DN / M3145IDN (papel preso):**
+**Vídeo de referência (papel preso):**
 https://drive.google.com/file/d/1vNMiC0YOQ2LD9bPzt6nWNyxnkuEyg6V4/view?usp=drive_link
 
-Troca de toner nesses modelos não tem vídeo próprio - usar o vídeo da caixa de toner (ver seção abaixo).
+Troca de toner nesse modelo não tem vídeo próprio - usa o vídeo da caixa de toner cheia (ver seção "Caixa de toner cheia" abaixo).
 
-### Caixa de toner cheia / Troca de toner — P3055DN / M3145IDN
-
-Esse é o mesmo vídeo usado tanto para "caixa de toner cheia" quanto para troca de toner nesses
-dois modelos - não existe vídeo separado de troca de toner para P3055DN / M3145IDN.
-
-https://drive.google.com/file/d/13ULsJgxxaFCIt3FVlNyGJjkezIYaZnA9/view?usp=drive_link
-
-Quando o funcionário selecionar **P3055DN / M3145IDN**, perguntar antes de continuar:
+Antes de continuar, perguntar:
 
 > "Está aparecendo alguma mensagem informando que a caixa de toner está cheia?"
 
-Se a resposta for **sim**, apresentar o vídeo acima. Nesse caso, não continuar com orientações
-genéricas de papel preso ou troca de toner, a menos que o funcionário informe que também existe
-outro problema.
+Se a resposta for **sim**, apresentar o vídeo de caixa de toner cheia (ver seção abaixo). Nesse caso, não continuar com orientações genéricas de papel preso ou troca de toner, a menos que o funcionário informe que também existe outro problema.
 
 Se a resposta for **não**, continuar normalmente conforme o problema relatado:
-- papel preso → apresentar o vídeo de papel preso do modelo (ver acima);
-- troca de toner → informar o modelo correto do toner e apresentar o vídeo acima (o mesmo da
-  caixa de toner cheia).
+- papel preso → apresentar o vídeo de papel preso acima;
+- troca de toner → informar os modelos de toner **3162 / 3182** e apresentar o vídeo de caixa de toner cheia (ver seção abaixo).
+
+### M3145IDN
+
+**Modelo do toner:** 3162
+
+**Vídeo de referência (papel preso):**
+https://drive.google.com/file/d/1vNMiC0YOQ2LD9bPzt6nWNyxnkuEyg6V4/view?usp=drive_link
+
+Troca de toner nesse modelo não tem vídeo próprio - usa o vídeo da caixa de toner cheia (ver seção "Caixa de toner cheia" abaixo).
+
+Antes de continuar, perguntar:
+
+> "Está aparecendo alguma mensagem informando que a caixa de toner está cheia?"
+
+Se a resposta for **sim**, apresentar o vídeo de caixa de toner cheia (ver seção abaixo). Nesse caso, não continuar com orientações genéricas de papel preso ou troca de toner, a menos que o funcionário informe que também existe outro problema.
+
+Se a resposta for **não**, continuar normalmente conforme o problema relatado:
+- papel preso → apresentar o vídeo de papel preso acima;
+- troca de toner → informar o modelo de toner **3162** e apresentar o vídeo de caixa de toner cheia (ver seção abaixo).
+
+### Caixa de toner cheia (P3055DN / M3145IDN)
+
+Vídeo compartilhado por P3055DN e M3145IDN - usado tanto para "caixa de toner cheia" quanto para
+troca de toner nesses dois modelos (nenhum dos dois tem vídeo de troca de toner separado):
+
+https://drive.google.com/file/d/13ULsJgxxaFCIt3FVlNyGJjkezIYaZnA9/view?usp=drive_link
 
 ### Comportamento conversacional
 
@@ -345,12 +349,14 @@ Exemplo:
 >
 > IA: "Certo. Qual é o modelo da impressora?
 > 1. FS-1370DN
-> 2. P2040DW / M2040DN
-> 3. P3055DN / M3145IDN"
+> 2. P2040DW
+> 3. M2040DN
+> 4. P3055DN
+> 5. M3145IDN"
 
 Depois da escolha, seguir somente o fluxo correspondente.
 
-Se o funcionário informar diretamente o modelo exato da impressora, não é necessário apresentar novamente as 3 opções; seguir diretamente para o procedimento daquele modelo.
+Se o funcionário informar diretamente o modelo exato da impressora, não é necessário apresentar novamente as 5 opções; seguir diretamente para o procedimento daquele modelo.
 
 ## 13. Acesso a portas com leitor de crachá
 
