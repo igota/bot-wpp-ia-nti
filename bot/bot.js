@@ -2222,6 +2222,11 @@ async function processarMensagem(message) {
             const dadosCompletos = await conectaBuscarDadosCompletos(session.data.conectaUserId);
             
             if (dadosCompletos) {
+                // 🔥 O endpoint de LISTA (usado pra achar o usuário pelo CPF) não traz o e-mail de
+                // forma confiável (vem null mesmo com allUserInfo:true) - só o endpoint de DETALHES
+                // (dadosCompletos) tem o valor certo, por isso sobrescreve aqui em vez de manter o
+                // que veio de `usuario.email` lá em cima.
+                session.data.conectaDados.email = dadosCompletos.email ? limparEmail(dadosCompletos.email) : session.data.conectaDados.email;
                 session.data.conectaDados.dataNascimento = dadosCompletos.birthday ? converterTimestampParaData(dadosCompletos.birthday) : session.data.conectaDados.dataNascimento;
                 session.data.conectaDados.dataAdmissao = (dadosCompletos.admissionDate || dadosCompletos.hireDate) ? converterTimestampParaData(dadosCompletos.admissionDate || dadosCompletos.hireDate) : session.data.conectaDados.dataAdmissao;
                 session.data.conectaDados.cargo = dadosCompletos.jobTitle || session.data.conectaDados.cargo;
