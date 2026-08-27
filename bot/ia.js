@@ -304,6 +304,43 @@ async function responderNatural({ evento, fatos = {}, mensagemUsuario = '', hist
 // ela recebe as seções relevantes do documento (ver selecionarSecoesRelevantes) e precisa
 // localizar a informação dentro delas sozinha.
 //
+// O documento tem vários procedimentos que dependem de "durante o expediente" x "fora do
+// expediente" (seções 7, 9, 11 - computador sem rede/não liga, impressora sem rede) - mas a IA não
+// tem relógio próprio, então sem informar a data/hora atual explicitamente ela só adivinha (ou
+// sempre responde como se fosse dentro do expediente). Calculamos isso em código (não confiamos na
+// IA pra fazer conta de horário) e passamos como fato pronto no prompt.
+const DIAS_SEMANA_PT = ['domingo', 'segunda-feira', 'terça-feira', 'quarta-feira', 'quinta-feira', 'sexta-feira', 'sábado'];
+const EXPEDIENTE_INICIO_HORA = 7;
+const EXPEDIENTE_FIM_HORA = 17;
+const FUSO_HORARIO_NTI = 'America/Fortaleza';
+
+function obterContextoExpediente() {
+    const partes = new Intl.DateTimeFormat('en-US', {
+        timeZone: FUSO_HORARIO_NTI,
+        weekday: 'short',
+        hour: '2-digit',
+        minute: '2-digit',
+        hour12: false
+    }).formatToParts(new Date());
+
+    const mapa = Object.fromEntries(partes.map(p => [p.type, p.value]));
+    const diaSemanaIndice = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].indexOf(mapa.weekday);
+    const hora = parseInt(mapa.hour, 10);
+    const diaUtil = diaSemanaIndice >= 1 && diaSemanaIndice <= 5;
+    const dentroDoExpediente = diaUtil && hora >= EXPEDIENTE_INICIO_HORA && hora < EXPEDIENTE_FIM_HORA;
+
+    return {
+        texto: `Agora é ${DIAS_SEMANA_PT[diaSemanaIndice]}, ${mapa.hour}:${mapa.minute} (horário de Fortaleza/Brasília). ` +
+            `O expediente do NTI é segunda a sexta, 07h às 17h - neste momento está ` +
+            `${dentroDoExpediente ? 'DENTRO' : 'FORA'} do expediente (nunca pergunte ao funcionário que horas são). ` +
+            `IMPORTANTE: isso só decide QUEM procurar (NTI ou NAC) na etapa final de encaminhamento - não pule ` +
+            `direto pra essa recomendação. Se o procedimento tiver uma etapa de diagnóstico (ex: verificar cabo, ` +
+            `luzes da porta de rede, reiniciar, testar tomada), sempre conduza esse diagnóstico primeiro, uma ` +
+            `pergunta por vez, e só recomende procurar o NTI/NAC se o diagnóstico não resolver.`,
+        dentroDoExpediente
+    };
+}
+
 // Segurança: instrução explícita pra NUNCA inventar procedimento fora do documento (mesma regra
 // que o próprio documento define em "Regra de segurança da informação"). Se a base não carregou
 // ou a IA falhar, cai no textoFallback (orientar a procurar o NTI).
@@ -318,6 +355,7 @@ async function responderDuvidaNTI(mensagemUsuario, { historico = [], textoFallba
 
     const textoConsulta = mensagemUsuario + ' ' + historico.map(h => h.texto).join(' ');
     const secoesRelevantes = selecionarSecoesRelevantes(textoConsulta);
+    const contextoExpediente = obterContextoExpediente();
 
     let prompt =
         'Você é um atendente humano de TI (HELPZIN) respondendo dúvidas de funcionários de um hospital pelo ' +
@@ -326,6 +364,7 @@ async function responderDuvidaNTI(mensagemUsuario, { historico = [], textoFallba
         'Não invente nenhum procedimento, telefone, prazo ou sistema que não esteja no documento. ' +
         'Se a dúvida não estiver coberta pelo documento, diga que não encontrou uma orientação específica ' +
         'e sugira procurar o setor responsável ou o NTI (ramal 9385, seg-sex 07h-17h).\n\n' +
+        `${contextoExpediente.texto}\n\n` +
         '=== TRECHO DO DOCUMENTO DE REGRAS DO NTI ===\n' +
         `${secoesRelevantes}\n` +
         '=== FIM DO TRECHO ===\n\n';
