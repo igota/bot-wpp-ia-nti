@@ -29,6 +29,95 @@ function carregarBaseConhecimento() {
     return BASE_CONHECIMENTO;
 }
 
+// 🔥 A base de conhecimento tende a crescer com o tempo (o NTI vai adicionando procedimentos), e
+// mandar o documento inteiro em toda pergunta gasta tokens/latência à toa quando só uma parte dele
+// é relevante pra pergunta atual. Por isso dividimos o documento em seções (por título "## ") e
+// mandamos só as seções relevantes - mais o histórico, pra continuar reconhecendo o assunto em
+// respostas de acompanhamento tipo "sim"/"não". Se nada bater, cai no documento inteiro - fallback
+// seguro que nunca faz a IA "perder" informação por causa da filtragem.
+let SECOES_BASE_CONHECIMENTO = null;
+
+// Seções de comportamento/formatação da resposta - independem do assunto perguntado, então sempre
+// entram junto (nomes já normalizados, sem acento, pra bater com normalizarTexto()).
+const SECOES_SEMPRE_INCLUIDAS = [
+    'comportamento conversacional da ia',
+    'seguranca e respostas desconhecidas',
+    'prioridade entre ia e fluxos fixos'
+];
+
+function normalizarTexto(texto) {
+    return (texto || '')
+        .normalize('NFD').replace(/[̀-ͯ]/g, '')
+        .toLowerCase();
+}
+
+function dividirEmSecoes(documento) {
+    const linhas = documento.split('\n');
+    const introducao = [];
+    const secoes = [];
+    let atual = null;
+
+    for (const linha of linhas) {
+        if (/^## /.test(linha)) {
+            if (atual) secoes.push(atual);
+            atual = { titulo: linha.replace(/^## \d+(\.\d+)?\.?\s*/, '').trim(), texto: linha + '\n' };
+        } else if (atual) {
+            atual.texto += linha + '\n';
+        } else {
+            introducao.push(linha);
+        }
+    }
+    if (atual) secoes.push(atual);
+
+    return { introducao: introducao.join('\n'), secoes };
+}
+
+function obterSecoesBaseConhecimento() {
+    if (SECOES_BASE_CONHECIMENTO !== null) return SECOES_BASE_CONHECIMENTO;
+    SECOES_BASE_CONHECIMENTO = dividirEmSecoes(carregarBaseConhecimento());
+    return SECOES_BASE_CONHECIMENTO;
+}
+
+// Palavras genéricas demais pra servir de critério de busca (verbos/pronomes/conectores comuns que
+// aparecem nos próprios exemplos de intenção de VÁRIAS seções do documento, ex: "consigo", "onde",
+// "informar") - sem filtrar essas, praticamente qualquer pergunta batia com quase todo o documento
+// e a filtragem não reduzia nada. Lista normalizada (sem acento), pra bater com normalizarTexto().
+const PALAVRAS_IGNORADAS = new Set([
+    'para', 'como', 'onde', 'quando', 'porque', 'qual', 'quais', 'quero', 'preciso', 'consigo',
+    'consegue', 'consegui', 'informar', 'gostaria', 'poderia', 'pode', 'podem', 'fazer', 'sobre',
+    'esta', 'estou', 'sendo', 'sido', 'isso', 'essa', 'esse', 'aquele', 'aquela', 'meu', 'minha',
+    'seu', 'sua', 'muito', 'mais', 'menos', 'ainda', 'tambem', 'apenas', 'agora', 'aqui', 'depois',
+    'antes', 'sempre', 'nunca', 'alguma', 'algum', 'nenhum', 'nenhuma', 'outro', 'outra', 'mesmo',
+    'mesma', 'tudo', 'nada', 'algo', 'coisa', 'obrigado', 'obrigada', 'ajuda', 'ajudar', 'alguem',
+    'voce', 'favor', 'bom', 'boa', 'dia', 'tarde', 'noite'
+]);
+
+// Seleciona as seções cujo título ou conteúdo tem alguma palavra (4+ letras, fora as ignoradas) em
+// comum com o texto de consulta (pergunta atual + histórico recente). Sempre inclui as seções de
+// comportamento/segurança. Se nenhuma seção de assunto bater, manda o documento inteiro - mais
+// seguro do que arriscar faltar informação por causa de uma palavra-chave que não bateu.
+function selecionarSecoesRelevantes(textoConsulta) {
+    const { introducao, secoes } = obterSecoesBaseConhecimento();
+    const palavras = [...new Set(normalizarTexto(textoConsulta).match(/[a-z0-9]{4,}/g) || [])]
+        .filter(p => !PALAVRAS_IGNORADAS.has(p));
+
+    const éSempreIncluida = (s) => SECOES_SEMPRE_INCLUIDAS.includes(normalizarTexto(s.titulo));
+    const sempre = secoes.filter(éSempreIncluida);
+    const relevantes = palavras.length
+        ? secoes.filter(s => {
+            if (éSempreIncluida(s)) return false;
+            const alvo = normalizarTexto(s.titulo + ' ' + s.texto);
+            return palavras.some(p => alvo.includes(p));
+        })
+        : [];
+
+    if (!relevantes.length) {
+        return introducao + '\n' + secoes.map(s => s.texto).join('\n');
+    }
+
+    return introducao + '\n' + [...sempre, ...relevantes].map(s => s.texto).join('\n');
+}
+
 function setConfig(appConfig) {
     const apiKey = appConfig?.ia?.apiKey || null;
     IA_CONFIG = {
@@ -140,7 +229,7 @@ async function interpretarOpcaoMenu(mensagemUsuario) {
         'cumprimentos/saudações como oi, olá, bom dia, tudo bem?, etc. sem pedir nada específico). ' +
         'Não escreva mais nada além do token.';
 
-    const resposta = await chamarGemini(prompt, { timeoutMs: 12000, temperature: 0, tentativas: 2, thinkingBudget: 1 });
+    const resposta = await chamarGemini(prompt, { timeoutMs: 6000, temperature: 0, tentativas: 2, thinkingBudget: 1 });
     if (!resposta) return null;
 
     const token = resposta.trim().split(/\s+/)[0].toUpperCase();
@@ -160,7 +249,7 @@ async function humanizarMensagem(mensagemBase) {
         'mensagem final, sem comentários sobre a tarefa.\n\n' +
         `Mensagem original:\n"""\n${mensagemBase}\n"""`;
 
-    const resposta = await chamarGemini(prompt, { timeoutMs: 9000, temperature: 0.5, thinkingBudget: 1 });
+    const resposta = await chamarGemini(prompt, { timeoutMs: 6000, temperature: 0.5, thinkingBudget: 1 });
     return resposta || mensagemBase;
 }
 
@@ -202,13 +291,14 @@ async function responderNatural({ evento, fatos = {}, mensagemUsuario = '', hist
         'isso é Markdown e não funciona no WhatsApp) e emojis com moderação. Responda só com a mensagem ' +
         'final, sem comentários sobre a tarefa.';
 
-    const resposta = await chamarGemini(prompt, { timeoutMs: 9000, temperature: 0.8, thinkingBudget: 1, tentativas: 2 });
+    const resposta = await chamarGemini(prompt, { timeoutMs: 6000, temperature: 0.8, thinkingBudget: 1, tentativas: 2 });
     return resposta || textoFallback;
 }
 
 // Responde uma dúvida geral do funcionário usando a base_conhecimento_nti.md como única fonte
 // de verdade. Diferente de responderNatural(), aqui a IA não recebe "fatos" escolhidos a dedo -
-// ela recebe o documento inteiro e precisa localizar a informação relevante sozinha.
+// ela recebe as seções relevantes do documento (ver selecionarSecoesRelevantes) e precisa
+// localizar a informação dentro delas sozinha.
 //
 // Segurança: instrução explícita pra NUNCA inventar procedimento fora do documento (mesma regra
 // que o próprio documento define em "Regra de segurança da informação"). Se a base não carregou
@@ -222,15 +312,19 @@ async function responderDuvidaNTI(mensagemUsuario, { historico = [], textoFallba
 
     if (!base) return fallbackPadrao;
 
+    const textoConsulta = mensagemUsuario + ' ' + historico.map(h => h.texto).join(' ');
+    const secoesRelevantes = selecionarSecoesRelevantes(textoConsulta);
+
     let prompt =
         'Você é um atendente humano de TI (HELPZIN) respondendo dúvidas de funcionários de um hospital pelo ' +
-        'WhatsApp, com base EXCLUSIVAMENTE no documento de regras internas do NTI abaixo. ' +
+        'WhatsApp, com base EXCLUSIVAMENTE nas seções do documento de regras internas do NTI abaixo (um ' +
+        'recorte do documento completo, com as partes relevantes pra esta conversa). ' +
         'Não invente nenhum procedimento, telefone, prazo ou sistema que não esteja no documento. ' +
         'Se a dúvida não estiver coberta pelo documento, diga que não encontrou uma orientação específica ' +
         'e sugira procurar o setor responsável ou o NTI (ramal 9385, seg-sex 07h-17h).\n\n' +
-        '=== DOCUMENTO DE REGRAS DO NTI ===\n' +
-        `${base}\n` +
-        '=== FIM DO DOCUMENTO ===\n\n';
+        '=== TRECHO DO DOCUMENTO DE REGRAS DO NTI ===\n' +
+        `${secoesRelevantes}\n` +
+        '=== FIM DO TRECHO ===\n\n';
 
     if (historico.length) {
         prompt += 'Histórico recente da conversa:\n';
@@ -245,7 +339,7 @@ async function responderDuvidaNTI(mensagemUsuario, { historico = [], textoFallba
         'Pode usar negrito no formato do WhatsApp (um único asterisco de cada lado, ex: *assim*; NUNCA dois ' +
         'asteriscos) e emojis com moderação. Responda só com a mensagem final, sem comentários sobre a tarefa.';
 
-    const resposta = await chamarGemini(prompt, { timeoutMs: 10000, temperature: 0.3, thinkingBudget: 1, tentativas: 2 });
+    const resposta = await chamarGemini(prompt, { timeoutMs: 7000, temperature: 0.3, thinkingBudget: 1, tentativas: 2 });
     return resposta || fallbackPadrao;
 }
 

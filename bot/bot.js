@@ -21,6 +21,7 @@ const vitae = require('./vitae.js');
 const ia = require('./ia.js'); // 🔥 PROTÓTIPO: camada de IA (Gemini) para respostas mais naturais
 const inventarioRede = require('./inventarioRede.js'); // Busca de IP na planilha (uso interno @nti)
 const { pingIP } = require('./ping.js'); // Ping de diagnóstico (uso interno @nti)
+const notificacoesSobreaviso = require('./notificacoesSobreaviso.js'); // Avisa quem está de sobreaviso (8h/15:55)
 
 // Variável global LISTA_CARGOS (vinda do glpi.js)
 let LISTA_CARGOS = glpi.LISTA_CARGOS;
@@ -101,6 +102,18 @@ inventarioRede.setConfig(config);
 
 // ==================== CONFIGURAÇÕES GERAIS ====================
 const sleep = (ms) => new Promise(resolve => setTimeout(resolve, ms));
+
+// 🔥 Saudações simples ("oi", "bom dia"...) são reconhecidas por palavra-chave, sem chamar a IA -
+// evita o round-trip do Gemini (10-20s em timeout/retry, ver ia.js) só pra descobrir que a
+// mensagem não pede nada específico e cair no menu de qualquer forma.
+const REGEX_SAUDACAO_SIMPLES = /^(oi+|ol[aá]|opa+|eae+|e\s*a[ií]|salve|hey+|hello|al[oô]|fala|bom\s*dia|boa\s*tarde|boa\s*noite|tudo\s*bem|tudo\s*bom|beleza|blz)[\s!?.,]*$/i;
+
+function ehSaudacaoSimples(texto) {
+    const normalizado = (texto || '')
+        .normalize('NFD').replace(/[̀-ͯ]/g, '')
+        .trim();
+    return REGEX_SAUDACAO_SIMPLES.test(normalizado);
+}
 
 // 🔥 PROTÓTIPO DE IA: guarda os últimos turnos da conversa por sessão, pra IA responder
 // de forma reativa (não amnésica) nos pontos que usam ia.responderNatural(). Mantém só
@@ -500,12 +513,12 @@ client.on('qr', (qr) => {
 client.on('ready', () => {
     console.log('✅ WhatsApp BOT conectado!');
     console.log('🎯 Bot ouvindo mensagens...');
-    console.log(`🔗 GLPI (AD): ${AD_SERVER}`);
-    console.log(`🔗 CONECTA: ${CONECTA_CONFIG.url}`);
+
+    notificacoesSobreaviso.iniciarAgendamento(client);
 });
 
 
-client.on('message', async (message) => {
+async function processarMensagem(message) {
     const from = message.from;
     const body = (message.body || '').trim();
     console.log(`📱 FROM exato: "${from}"`); // ← Vai mostrar o formato correto
@@ -1678,6 +1691,27 @@ client.on('message', async (message) => {
         // ==================== STEP 0: MENU PRINCIPAL ====================
         if (session.step === 0) {
 
+            const menuHeader = `🤖 *HELPZIN - Menu Principal*`;
+            const menuOpcoes =
+                'Bem-Vindo ao Assistente de Sistemas do NTI\n\n' +
+                '1️⃣ *GLPI (Usuário Windows)* - Alterar Senha \n' +
+                '2️⃣ *CONECTA* - Alterar Senha \n' +
+                '3️⃣ *VITAE* - Alterar Email \n\n' +
+                'Digite o número da opção:\n\n' +
+                '- *MENU* para voltar ao menu principal\n' +
+                '- *SAIR* para cancelar atendimento';
+            const menuBase = `${menuHeader}\n\n${menuOpcoes}`;
+
+            // 🔥 Saudação simples ("oi", "bom dia"...) não precisa de IA nenhuma - nem pro
+            // classificador de intenção, nem pra "humanizar" o texto do menu. Detecta por
+            // palavra-chave (sem round-trip ao Gemini, que pode levar de 10 a 20s em timeout/retry
+            // - ver ia.js) e manda o menu padrão na hora.
+            if (ehSaudacaoSimples(body)) {
+                console.log(`👋 Saudação simples de ${from}, enviando menu direto (sem IA)`);
+                await client.sendMessage(from, menuBase);
+                return;
+            }
+
             // 🔥 PROTÓTIPO DE IA: se a mensagem não for 1/2/3, tenta interpretar a intenção
             // do usuário em texto livre antes de cair no menu padrão. Se a IA estiver
             // desativada, sem chave configurada, ou não conseguir identificar com confiança,
@@ -1768,17 +1802,6 @@ client.on('message', async (message) => {
                 return;
             }
 
-            const menuHeader = `🤖 *HELPZIN - Menu Principal*`;
-            const menuOpcoes =
-                'Bem-Vindo ao Assistente de Sistemas do NTI\n\n' +
-                '1️⃣ *GLPI (Usuário Windows)* - Alterar Senha \n' +
-                '2️⃣ *CONECTA* - Alterar Senha \n' +
-                '3️⃣ *VITAE* - Alterar Email \n\n' +
-                'Digite o número da opção:\n\n' +
-                '- *MENU* para voltar ao menu principal\n' +
-                '- *SAIR* para cancelar atendimento';
-            const menuBase = `${menuHeader}\n\n${menuOpcoes}`;
-
             if (['1', '2', '3'].includes(opcaoEfetiva)) {
                 await iniciarFluxoSistema(from, session, opcaoEfetiva);
 
@@ -1795,14 +1818,32 @@ client.on('message', async (message) => {
 
         // ==================== SUB-FLUXO: DÚVIDA NTI (conversa livre) ====================
         // Mantém o usuário aqui até ele digitar MENU/SAIR (interceptados globalmente antes da
-        // lógica de step) - continuações de conversa (ex: respostas de acompanhamento como "sim",
-        // ou até "1"/"2" respondendo uma pergunta da própria IA) são tratadas como parte da mesma
-        // dúvida, em vez de caírem no classificador de intenção do STEP 0. Um dígito solto aqui NÃO
-        // é interpretado como escolha do Menu Principal - a base de conhecimento já orienta a IA a
-        // dizer "digite MENU" quando quer encaminhar o usuário pra uma opção fixa, então a troca de
-        // fluxo só acontece via o comando MENU (global) seguido da escolha no STEP 0.
+        // lógica de step) - continuações de conversa (ex: respostas de acompanhamento como "sim")
+        // são tratadas como parte da mesma dúvida, em vez de caírem no classificador de intenção
+        // do STEP 0.
+        //
+        // Um dígito solto (1/2/3) só é tratado como escolha do Menu Principal se a ÚLTIMA resposta
+        // do próprio bot mencionou "opção N" (ex: "...através da opção 1 do Menu Principal") - é o
+        // caso de dúvidas tipo "preciso do acesso do GLPI" onde a IA orienta a usar o fluxo fixo, e
+        // o usuário naturalmente responde só "1" em vez de digitar MENU primeiro. Sem essa checagem
+        // de contexto, esse "1" virava só mais uma mensagem solta pra IA, que tentava "continuar"
+        // um procedimento que não existe (ex: pedir nome) em vez de abrir o fluxo fixo de verdade.
+        // Uma lista numerada SEM a palavra "opção" (ex: sub-menu de modelo de impressora) não bate
+        // nesse regex, então continua sendo tratada como resposta normal da conversa - não hijacka
+        // dígitos que respondem outras perguntas da IA.
         if (session.step === 'STEP_DUVIDA_NTI') {
             atualizarAtividade(from);
+
+            if (['1', '2', '3'].includes(body)) {
+                const ultimaRespostaBot = [...(session.data.historicoIA || [])].reverse().find(h => h.papel === 'bot')?.texto || '';
+                const mencionouOpcao = new RegExp(`op[çc][ãa]o\\s*${body}\\b`, 'i').test(ultimaRespostaBot);
+
+                if (mencionouOpcao) {
+                    session.step = 0;
+                    await iniciarFluxoSistema(from, session, body);
+                    return;
+                }
+            }
 
             const resposta = await ia.responderDuvidaNTI(body, {
                 historico: session.data.historicoIA || []
@@ -3004,6 +3045,29 @@ client.on('message', async (message) => {
         );
         delete sessions[from];
     }
+}
+
+// 🔥 Fila de processamento por sessão: sem isso, duas mensagens da MESMA pessoa chegando em
+// sequência rápida (comum quando a IA demora pra responder - ver retries em ia.js, até ~20s no
+// pior caso) eram processadas em PARALELO. Cada chamada concorrente lia session.data.historicoIA
+// antes da outra terminar de gravar sua própria troca, então a segunda pergunta ia pro Gemini sem
+// o contexto da primeira - a IA "perdia o fio" da conversa (ex: perguntar sobre as luzes da porta
+// de rede e não levar em conta a resposta que o usuário já tinha mandado). Mensagens de pessoas
+// diferentes continuam sendo processadas em paralelo normalmente, só a fila é por `from`.
+const filaPorSessao = new Map();
+
+client.on('message', (message) => {
+    const from = message.from;
+    const anterior = filaPorSessao.get(from) || Promise.resolve();
+    const atual = anterior
+        .catch(() => {}) // uma falha na mensagem anterior não pode travar a fila dessa sessão
+        .then(() => processarMensagem(message))
+        .catch(error => console.error(`❌ Erro não tratado no handler de ${from}: ${error.message}`));
+
+    filaPorSessao.set(from, atual);
+    atual.finally(() => {
+        if (filaPorSessao.get(from) === atual) filaPorSessao.delete(from);
+    });
 });
 
 client.initialize();

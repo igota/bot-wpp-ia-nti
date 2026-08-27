@@ -254,16 +254,25 @@ A IA deve apresentar somente essas 3 opções e aguardar a resposta antes de con
 
 **Modelo do toner:** 172
 
-**Vídeo de referência:**
+**Vídeo de referência (papel preso):**
 https://drive.google.com/file/d/1MnP0F0aYQjbpBa39alNANHwSkI2FDGRR/view?usp=drive_link
 
-Se o problema for papel preso, orientar o funcionário a utilizar o vídeo como referência para remoção do papel.
+**Vídeo de referência (troca de toner):**
+https://drive.google.com/file/d/1uDnODohP3knbJgEjXw5pll1UbNN3eDoR/view?usp=sharing
 
-Se o problema for troca de toner, informar que o toner utilizado é o **modelo 172** e apresentar o mesmo vídeo de referência.
+Se o problema for papel preso, orientar o funcionário a utilizar o vídeo de papel preso como referência para remoção do papel.
+
+Se o problema for troca de toner, informar que o toner utilizado é o **modelo 172** e apresentar o vídeo de troca de toner (não o de papel preso).
 
 ### P2040DW / M2040DN
 
-Antes de informar o toner, identificar qual dos dois modelos é a impressora.
+São DOIS modelos de impressora diferentes, cada um com toner diferente. Antes de informar
+qualquer modelo de toner, perguntar:
+
+> "É a impressora P2040DW ou M2040DN?"
+
+Aguardar a resposta antes de continuar. Nunca informar os toners de P2040DW e M2040DN juntos
+na mesma resposta - só o modelo correspondente à impressora identificada.
 
 #### P2040DW
 
@@ -273,16 +282,25 @@ Antes de informar o toner, identificar qual dos dois modelos é a impressora.
 
 **Modelos de toner:** 1175 / 1172
 
-**Vídeo de referência para P2040DW / M2040DN:**
+**Vídeo de referência para P2040DW / M2040DN (papel preso):**
 https://drive.google.com/file/d/1DIVYhLGXg863AfYsVsrMPXDy7hZQErLq/view?usp=drive_link
 
-Se o problema for papel preso, orientar o funcionário a utilizar o vídeo como referência para remoção do papel.
+**Vídeo de referência para P2040DW / M2040DN (troca de toner):**
+https://drive.google.com/file/d/1kL3G0zcGpRv4UDSJW_q-JZnVmbvi864-/view?usp=drive_link
 
-Se o problema for troca de toner, informar somente o modelo correspondente à impressora identificada e apresentar o vídeo.
+Se o problema for papel preso, orientar o funcionário a utilizar o vídeo de papel preso como referência para remoção do papel.
+
+Se o problema for troca de toner, informar somente o modelo correspondente à impressora identificada e apresentar o vídeo de troca de toner (não o de papel preso).
 
 ### P3055DN / M3145IDN
 
-Antes de informar o toner, identificar qual dos dois modelos é a impressora.
+São DOIS modelos de impressora diferentes, cada um com toner diferente. Antes de informar
+qualquer modelo de toner, perguntar:
+
+> "É a impressora P3055DN ou M3145IDN?"
+
+Aguardar a resposta antes de continuar. Nunca informar os toners de P3055DN e M3145IDN juntos
+na mesma resposta - só o(s) modelo(s) correspondente(s) à impressora identificada.
 
 #### P3055DN
 
@@ -292,24 +310,30 @@ Antes de informar o toner, identificar qual dos dois modelos é a impressora.
 
 **Modelo do toner:** 3162
 
-**Vídeo de referência para P3055DN / M3145IDN:**
+**Vídeo de referência para P3055DN / M3145IDN (papel preso):**
 https://drive.google.com/file/d/1vNMiC0YOQ2LD9bPzt6nWNyxnkuEyg6V4/view?usp=drive_link
 
-### Caixa de toner cheia — P3055DN / M3145IDN
+Troca de toner nesses modelos não tem vídeo próprio - usar o vídeo da caixa de toner (ver seção abaixo).
+
+### Caixa de toner cheia / Troca de toner — P3055DN / M3145IDN
+
+Esse é o mesmo vídeo usado tanto para "caixa de toner cheia" quanto para troca de toner nesses
+dois modelos - não existe vídeo separado de troca de toner para P3055DN / M3145IDN.
+
+https://drive.google.com/file/d/13ULsJgxxaFCIt3FVlNyGJjkezIYaZnA9/view?usp=drive_link
 
 Quando o funcionário selecionar **P3055DN / M3145IDN**, perguntar antes de continuar:
 
 > "Está aparecendo alguma mensagem informando que a caixa de toner está cheia?"
 
-Se a resposta for **sim**, apresentar o vídeo específico para troca/esvaziamento da caixa de toner:
-
-https://drive.google.com/file/d/13ULsJgxxaFCIt3FVlNyGJjkezIYaZnA9/view?usp=drive_link
-
-Nesse caso, não continuar com orientações genéricas de papel preso ou troca de toner, a menos que o funcionário informe que também existe outro problema.
+Se a resposta for **sim**, apresentar o vídeo acima. Nesse caso, não continuar com orientações
+genéricas de papel preso ou troca de toner, a menos que o funcionário informe que também existe
+outro problema.
 
 Se a resposta for **não**, continuar normalmente conforme o problema relatado:
-- papel preso → apresentar o vídeo de referência do modelo;
-- troca de toner → informar o modelo correto do toner e apresentar o vídeo.
+- papel preso → apresentar o vídeo de papel preso do modelo (ver acima);
+- troca de toner → informar o modelo correto do toner e apresentar o vídeo acima (o mesmo da
+  caixa de toner cheia).
 
 ### Comportamento conversacional
 
