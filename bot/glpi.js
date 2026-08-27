@@ -218,12 +218,15 @@ function limparPartes(nome) {
         .filter(p => p.length > 2 && !ignorar.includes(p));
 }
 
-// Compara duas strings de mesmo tamanho permitindo que '?' (marcador de
-// caractere corrompido, ver normalizar()) case com qualquer caractere na
-// mesma posição. Usado apenas quando uma das palavras contém '?'.
+// Compara duas strings permitindo que '?' (marcador de caractere corrompido, ver normalizar())
+// case com qualquer caractere na mesma posição. Tolera diferença de até 2 no tamanho - o dsquery
+// às vezes não só corrompe um acento como também trunca o fim do nome (ex: "Alcântara" chega como
+// "Alc?ntar", perdendo o 'â'→'?' E o 'a' final), então compara só até o tamanho da palavra mais
+// curta em vez de exigir tamanhos iguais. Usado apenas quando uma das palavras contém '?'.
 function casaComWildcard(a, b) {
-    if (a.length !== b.length) return false;
-    for (let i = 0; i < a.length; i++) {
+    if (Math.abs(a.length - b.length) > 2) return false;
+    const tamanho = Math.min(a.length, b.length);
+    for (let i = 0; i < tamanho; i++) {
         if (a[i] === '?' || b[i] === '?') continue;
         if (a[i] !== b[i]) return false;
     }

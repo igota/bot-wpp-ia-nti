@@ -340,22 +340,30 @@ async function buscarDadosSeguranca(cpf) {
     };
 }
 
+// Remove acentos (ex: "João" -> "Joao") - a base do CONECTA guarda os nomes sem diacríticos, então
+// buscar com o texto acentuado como o funcionário digitou não bate nada no servidor deles.
+function removerAcentos(texto) {
+    return (texto || '').normalize('NFD').replace(/[̀-ͯ]/g, '');
+}
+
 // Função para buscar usuário no CONECTA pelo Nome Completo
 async function buscarUsuariosPorNome(nomeCompleto) {
     console.log(`🔍 Buscando usuários no CONECTA pelo nome: ${nomeCompleto}`);
-    
+
     if (!CONECTA_API_CONFIG) {
         console.error('❌ CONECTA: Configurações não carregadas');
         return [];
     }
-    
+
+    const termoBusca = removerAcentos(nomeCompleto);
+
     try {
         const response = await conectaRequest(token => axios.get(`${CONECTA_API_CONFIG.baseURL}${CONECTA_API_CONFIG.buscarUsuarioUrl}`, {
             params: {
                 first: 0,
                 pagesize: 30,
                 statusList: 'ATIVO,INATIVO,PENDENTE,SENHA_EXPIRADA,RECUSOU_TERMO,BLOQUEADO',
-                text: nomeCompleto,
+                text: termoBusca,
                 isNewUserStatusLogic: true,
                 allUserInfo: false
             },
@@ -364,11 +372,12 @@ async function buscarUsuariosPorNome(nomeCompleto) {
                 'Content-Type': 'application/json'
             }
         }));
-        
+
         if (response.data && response.data.data && response.data.data.list && response.data.data.list.length > 0) {
-            // Filtra para garantir que o nome corresponde
-            const usuariosFiltrados = response.data.data.list.filter(usuario => 
-                usuario.fullName && usuario.fullName.toLowerCase().includes(nomeCompleto.toLowerCase())
+            // Filtra para garantir que o nome corresponde (compara sem acento nos dois lados, já
+            // que tanto o texto digitado quanto o nome vindo da API podem ou não ter diacríticos)
+            const usuariosFiltrados = response.data.data.list.filter(usuario =>
+                usuario.fullName && removerAcentos(usuario.fullName).toLowerCase().includes(termoBusca.toLowerCase())
             );
             
             // Para cada usuário, busca dados completos
