@@ -9,7 +9,7 @@ const SERVIDOR_DIR = path.join(__dirname, '..', 'servidor');
 module.exports = {
   apps: [
     {
-      name: 'whatsapp-bot-ia-proto',
+      name: 'whatsapp-bot-ia',
       script: '../bot/bot.js',
       instances: 1,
       exec_mode: 'fork',
@@ -34,7 +34,7 @@ module.exports = {
       max_restarts: 10
     },
     {
-      name: 'reset-senha-api-ia-proto',
+      name: 'reset-senha-glpi',
       script: 'run.py',
       interpreter: 'python',
       cwd: SERVIDOR_DIR,

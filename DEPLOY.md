@@ -2,7 +2,7 @@
 
 Passo a passo para colocar os dois processos (bot de WhatsApp e servidor de reset de senha) rodando do zero num servidor Windows novo. Para entender o que cada peça faz, veja o [README](README.md) primeiro.
 
-> ⚠️ **Antes de seguir este guia**: os scripts em `bats/*.bat` têm **caminhos absolutos hardcoded** (`C:\Mega\Projeto BOT WPP\...`, de uma instalação antiga) e referenciam nomes de processo PM2 diferentes dos declarados em `pm2/ecosystem.config.js` (`whatsapp-bot` vs `whatsapp-bot-ia-proto`, `reset-senha-api` vs `reset-senha-api-ia-proto`). **Ajuste os `.bat` antes de usá-los** — o passo 6 abaixo detalha isso. (O `cwd` do `ecosystem.config.js` em si **não precisa de ajuste**: ele é calculado automaticamente a partir da posição do próprio arquivo, então funciona em qualquer caminho onde o repositório for clonado.)
+> ⚠️ **Antes de seguir este guia**: os scripts em `bats/*.bat` têm **caminhos absolutos hardcoded** (`C:\Mega\Projeto BOT WPP\...`, de uma instalação antiga) e referenciam nomes de processo PM2 diferentes dos declarados em `pm2/ecosystem.config.js` (`whatsapp-bot` vs `whatsapp-bot-ia`, `reset-senha-api` vs `reset-senha-glpi`). **Ajuste os `.bat` antes de usá-los** — o passo 6 abaixo detalha isso. (O `cwd` do `ecosystem.config.js` em si **não precisa de ajuste**: ele é calculado automaticamente a partir da posição do próprio arquivo, então funciona em qualquer caminho onde o repositório for clonado.)
 
 ## 0. Pré-requisitos no servidor
 
@@ -87,7 +87,7 @@ Um QR code aparece no terminal — escaneie com a conta de WhatsApp que vai atua
 
 Já os scripts em `bats/` (`iniciar-bot.bat`, `parar-bot.bat`, `reiniciar-bot.bat`, `limpeza-cache-bot.bat`) precisam de dois ajustes manuais:
 1. Corrija o `cd /d "..."` de cada um para o caminho real onde você clonou o repositório neste servidor (passo 1) — hoje eles apontam para `C:\Mega\Projeto BOT WPP\pm2` / `...\bot`, de uma instalação antiga.
-2. Corrija os nomes de processo nos comandos `pm2 stop`/`pm2 start` para bater com os nomes declarados em `ecosystem.config.js` (`whatsapp-bot-ia-proto` e `reset-senha-api-ia-proto`) — os scripts atuais usam nomes antigos (`whatsapp-bot`, `reset-senha-api`) que não existem no `ecosystem.config.js` deste repositório.
+2. Corrija os nomes de processo nos comandos `pm2 stop`/`pm2 start` para bater com os nomes declarados em `ecosystem.config.js` (`whatsapp-bot-ia` e `reset-senha-glpi`) — os scripts atuais usam nomes antigos (`whatsapp-bot`, `reset-senha-api`) que não existem no `ecosystem.config.js` deste repositório.
 
 ## 7. Subir com PM2
 
@@ -108,9 +108,9 @@ pm2-startup install    # ou: pm2 startup, seguindo as instruções que o comando
 ## 8. Verificação pós-deploy
 
 - `pm2 status` — os dois apps devem estar `online`.
-- `pm2 logs whatsapp-bot-ia-proto` — confirme que carregou o `.env` sem erro (`bot/config.js` imprime `✅`/`❌` para cada variável obrigatória) e que a sessão do WhatsApp reconectou sem pedir novo QR code.
+- `pm2 logs whatsapp-bot-ia` — confirme que carregou o `.env` sem erro (`bot/config.js` imprime `✅`/`❌` para cada variável obrigatória) e que a sessão do WhatsApp reconectou sem pedir novo QR code.
 - Mande uma mensagem de teste pro número do bot no WhatsApp e percorra o menu principal.
-- `pm2 logs reset-senha-api-ia-proto` — confirme que subiu na porta configurada, e teste o fluxo de reset de senha por link de e-mail ponta a ponta.
+- `pm2 logs reset-senha-glpi` — confirme que subiu na porta configurada, e teste o fluxo de reset de senha por link de e-mail ponta a ponta.
 
 ## 9. Operação do dia a dia
 
