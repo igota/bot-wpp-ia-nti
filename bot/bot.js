@@ -39,7 +39,7 @@ const {
     limparEmail,
     conectaBuscarDadosCompletos,
     enviarCodigoEmailConecta,
-    NOVA_SENHA
+    getNovaSenha
 } = conecta;
 
 const { 
@@ -2957,7 +2957,7 @@ async function processarMensagem(message) {
                             `✅ *SENHA RESETADA COM SUCESSO!*\n\n` +
                             `👤 Nome: *${session.data.nomeEncontrado}*\n` +
                             `💻 Sistema: *CONECTA*\n` +
-                            `🔑 Nova senha: \`${NOVA_SENHA}\`\n\n` +
+                            `🔑 Nova senha: \`${getNovaSenha()}\`\n\n` +
                             `⚠️ *ATENÇÃO:* Esta é uma senha temporária.\n` +
                             `Você será obrigado a alterá-la no primeiro acesso.\n\n` +
                             `🔗 *Acesse o sistema CONECTA:*\n` +

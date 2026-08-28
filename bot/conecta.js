@@ -35,6 +35,7 @@ function setTransporter(mailTransporter, appConfig) {
 
     NOVA_SENHA = config.conecta.novaSenha;
 
+    console.log(`   novaSenha: ${NOVA_SENHA ? '✅' : '❌'}`);
     console.log('✅ CONECTA: Configurações carregadas do .env');
     console.log(`   baseURL: ${CONECTA_API_CONFIG.baseURL}`);
     console.log(`   username: ${CONECTA_API_CONFIG.username}`);
@@ -54,6 +55,15 @@ function converterTimestampParaData(timestamp) {
 function limparEmail(email) {
     if (!email || email === 'Não informado') return null;
     return email.replace(/_INATIVO_/gi, '');
+}
+
+// 🔥 Exportar NOVA_SENHA direto (module.exports = { NOVA_SENHA }) vinha sempre null pra quem
+// desestruturasse no require - o require() de bot.js roda ANTES de setTransporter() preencher essa
+// variável a partir do .env, e module.exports copia o VALOR de NOVA_SENHA naquele instante (ainda
+// null), sem ficar "ligado" à variável depois. Uma função fecha sobre a variável do módulo (mesmo
+// escopo do setTransporter), então sempre devolve o valor atual, não importa quando for chamada.
+function getNovaSenha() {
+    return NOVA_SENHA;
 }
 
 // Função para enviar código por email (CONECTA)
@@ -450,5 +460,5 @@ module.exports = {
     limparEmail,
     conectaBuscarDadosCompletos,
     enviarCodigoEmailConecta,
-    NOVA_SENHA
+    getNovaSenha
 };
