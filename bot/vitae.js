@@ -1315,7 +1315,7 @@ async function buscarEAlterarEmailVitae(from, novoEmail) {
         await sleep(200);
 
         // Modal senha
-        await page.waitForSelector('input[id*="senhaModal"]', { timeout: 200 });
+        await page.waitForSelector('input[id*="senhaModal"]', { timeout: 10000 });
 
         await page.evaluate((password) => {
             const senhaInput = document.querySelector('input[id*="senhaModal"]');
