@@ -520,11 +520,17 @@ client.on('ready', () => {
 
 async function processarMensagem(message) {
     const from = message.from;
+
+    // Atualizações de Status/Stories chegam com from === 'status@broadcast' e não
+    // são um chat de verdade — responder a elas quebra o whatsapp-web.js
+    // (canCheckStatusRankingPosterGating is not a function) e cria sessões fantasma.
+    if (from === 'status@broadcast') return;
+
     const body = (message.body || '').trim();
     console.log(`📱 FROM exato: "${from}"`); // ← Vai mostrar o formato correto
 
 
-    
+
     if (message.isGroupMsg) return;
     if (from === client.info.wid._serialized) return;
 

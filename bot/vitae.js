@@ -229,15 +229,11 @@ const XPATH_GRUPO_CONSULTA_ITEM = '//*[@id="formulario:viewCadastro:pick:source:
 const XPATH_BOTAO_ADICIONAR_GRUPO = '//*[@id="formulario:viewCadastro:pickcopy"]/div/div/img';
 const XPATH_CONTAINER_BOTAO_ADICIONAR_GRUPO = '//*[@id="formulario:viewCadastro:pickcopy"]';
 
-// Grupos do CRM (verificados/adicionados depois da transferência para o HRN - ver garantirGruposCRM)
-const XPATH_GRUPO_MEDICOS_ITEM = '//*[@id="formulario:viewCadastro:pick:source::201"]/td';
-const XPATH_GRUPO_NAC_PROFISSIONAL_ITEM = '//*[@id="formulario:viewCadastro:pick:source::208"]/td';
-
 // Seleciona um item da lista de grupos disponíveis (pela aba Grupos) e move pra lista do usuário,
-// confirmando de fato que o grupo apareceu antes de retornar - usada tanto para o CONSULTA
-// (obrigatório pra salvar Entidade/Setor) quanto para os grupos do CRM (MEDICOS/NAC -
-// PROFISSIONAL). clicar() nunca lança erro quando o xpath não casa com nada (só não faz nada),
-// por isso aqui checamos explicitamente a existência do item antes de clicar.
+// confirmando de fato que o grupo apareceu antes de retornar - usada para garantir o grupo
+// CONSULTA (obrigatório pra salvar Entidade/Setor). clicar() nunca lança erro quando o xpath não
+// casa com nada (só não faz nada), por isso aqui checamos explicitamente a existência do item
+// antes de clicar.
 async function adicionarGrupo(page, xpathItem, nomeGrupo) {
     console.log(`➕ Adicionando grupo ${nomeGrupo}...`);
 
@@ -330,39 +326,6 @@ async function adicionarGrupo(page, xpathItem, nomeGrupo) {
 // da transferência sempre ganha o grupo CONSULTA antes de salvar.
 async function adicionarGrupoConsulta(page) {
     return adicionarGrupo(page, XPATH_GRUPO_CONSULTA_ITEM, 'CONSULTA');
-}
-
-// Contas de login com "CRM" (médicos) às vezes ficam sem os grupos MEDICOS / NAC - PROFISSIONAL
-// depois de transferidas pro HRN. Verifica o que já tem e só adiciona o que faltar; se já tiver
-// os dois, não faz nada além de logar o estado atual.
-const GRUPOS_CRM_OBRIGATORIOS = [
-    { nome: 'MEDICOS', xpath: XPATH_GRUPO_MEDICOS_ITEM },
-    { nome: 'NAC - PROFISSIONAL', xpath: XPATH_GRUPO_NAC_PROFISSIONAL_ITEM }
-];
-
-async function garantirGruposCRM(page, password) {
-    console.log('🩺 Login com CRM detectado - verificando grupos MEDICOS / NAC - PROFISSIONAL...');
-
-    const gruposAtuais = await capturarGruposUsuario(page);
-    const gruposAtuaisUpper = gruposAtuais.map(g => g.toUpperCase());
-
-    const faltando = GRUPOS_CRM_OBRIGATORIOS.filter(
-        grupo => !gruposAtuaisUpper.some(g => g.includes(grupo.nome.toUpperCase()))
-    );
-
-    if (faltando.length === 0) {
-        console.log(`   ℹ️ Usuário já possui os grupos necessários (atuais: ${gruposAtuais.join(', ') || 'nenhum'}) - nenhuma ação necessária`);
-        return;
-    }
-
-    console.log(`   ⚠️ Grupo(s) faltando: ${faltando.map(g => g.nome).join(', ')} - adicionando...`);
-
-    for (const grupo of faltando) {
-        await adicionarGrupo(page, grupo.xpath, grupo.nome);
-    }
-
-    await confirmarAlteracaoComSenha(page, password);
-    console.log('   ✅ Grupos do CRM salvos com sucesso');
 }
 
 // Captura os grupos em que o usuário está inserido, lendo todas as linhas do tbody da lista de
@@ -1594,12 +1557,6 @@ async function transferirUnidadeUsuario(from, valorBusca, tipoBusca = 'cpf') {
         page = sessions.get(from).page;
         console.log('🔁 Alterando unidade do usuário alvo para HOSPITAL REGIONAL NORTE / Setor Ambulatório...');
         await alterarEntidadeSetor(page, HOSPITAL_REGIONAL_NORTE_VALOR, SETOR_AMBULATORIO_NOME, senhaAgente, true);
-
-        // Contas de médico (login com "CRM") às vezes ficam sem grupo depois de transferidas pro
-        // HRN - garante MEDICOS / NAC - PROFISSIONAL antes de seguir pra restauração do agente.
-        if (loginAlvo && loginAlvo.toUpperCase().includes('CRM')) {
-            await garantirGruposCRM(page, senhaAgente);
-        }
 
         // Etapa 4: restauração da unidade do agente - primeira tentativa sem relogar (a sessão
         // já está fresca desde a etapa 3), com retry automático relogando do zero se falhar.
