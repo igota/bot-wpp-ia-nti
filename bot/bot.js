@@ -1730,7 +1730,12 @@ async function processarMensagem(message) {
 
             if (!['1', '2', '3'].includes(opcaoEfetiva)) {
                 const interpretada = await ia.interpretarOpcaoMenu(body);
-                if (interpretada) {
+                // RAMAL só é aceito se o texto realmente citar ramal/telefone - sem essa checagem,
+                // a IA às vezes classifica um número solto (ex: "1234", digitado por engano ou
+                // tentando adivinhar uma opção) como pedido de ramal sem contexto nenhum.
+                if (interpretada === 'RAMAL' && !/\b(ramal|ramais|telefone)\b/i.test(body)) {
+                    console.log(`🤖 IA interpretou "${body}" como RAMAL mas sem palavra-chave no texto - ignorando`);
+                } else if (interpretada) {
                     console.log(`🤖 IA interpretou "${body}" como ${interpretada}`);
                     // RAMAL não aparece no menu numérico (só é acessível quando o funcionário
                     // menciona em texto livre, ex: "qual o ramal da farmácia") - internamente
@@ -1817,7 +1822,11 @@ async function processarMensagem(message) {
             // 🔥 RAMAIS: diferente de GLPI/CONECTA/VITAE, não é um "sistema" com fluxo de senha -
             // é uma busca determinística (sem IA) na planilha de ramais, aberta a qualquer
             // funcionário (sem allowlist, diferente das outras planilhas do menu oculto @nti/@nac).
-            if (opcaoEfetiva === '4') {
+            // interpretadaPorIA aqui é obrigatório: '4' não é uma opção literal do menu (só 1/2/3
+            // aparecem no texto), então um "4" digitado cru pelo usuário não deve cair em RAMAIS -
+            // só chega aqui quando a IA de fato classificou a mensagem como RAMAL (já filtrado
+            // acima pela palavra-chave).
+            if (opcaoEfetiva === '4' && interpretadaPorIA) {
                 await client.sendMessage(from,
                     `☎️ *RAMAIS*\n\n` +
                     `Digite o nome do *setor* (ex: Farmácia, UTI, RH) ou o *número do ramal* que você quer consultar:`
