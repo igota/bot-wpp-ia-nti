@@ -845,6 +845,9 @@ async function processarMensagem(message) {
                 );
             } else {
                 let msg = `📋 *${resultados.length} resultado(s) para "${termo}":*\n\n`;
+                if (resultados.abaDesatualizada) {
+                    msg += `⚠️ _Aba do mês atual ainda não disponível - mostrando dados de ${resultados.abaUsada}._\n\n`;
+                }
                 resultados.forEach((r, i) => {
                     msg += `*${i + 1}.* 🖨️ *${r.setor}*\n` +
                         `   Equip.: ${r.equip || '-'}\n` +

@@ -272,25 +272,45 @@ async function garantirCacheImpressora(aba) {
     return cacheImpressora;
 }
 
-// Busca por SETOR (texto livre, todas as palavras do termo precisam aparecer). Sempre lê a aba do
-// mês atual (JAN..DEZ); se essa aba ainda não existir na planilha, avisa em vez de usar mês
-// anterior (dado de contador/toner desatualizado poderia levar a troca de toner errada).
+function mesAnteriorA(aba) {
+    const idx = MESES.indexOf(aba);
+    return MESES[(idx - 1 + MESES.length) % MESES.length];
+}
+
+// Busca por SETOR (texto livre, todas as palavras do termo precisam aparecer). Sempre tenta a aba
+// do mês atual primeiro (JAN..DEZ) - se ela já existir na planilha, usa sempre essa (dado mais
+// atual). Se ainda não existir (mês recém-virado e planilha não preenchida), cai pro mês anterior
+// em vez de simplesmente não mostrar nada; só avisa "ainda não disponível" se nem o mês anterior
+// existir.
 async function buscarModeloImpressora(termo) {
     if (!FONTES?.modeloImpressora?.sheetId || !AUTH_CONFIG?.keyPath) return null;
 
-    const aba = abaDoMesAtual();
+    const abaAtual = abaDoMesAtual();
     let cache;
+    let aba = abaAtual;
     try {
-        cache = await garantirCacheImpressora(aba);
+        cache = await garantirCacheImpressora(abaAtual);
     } catch (error) {
         const mensagemApi = error.response?.data?.error?.message || error.message;
         // A API do Sheets retorna 400 quando a aba pedida não existe - é o caso normal de "mês
         // ainda não criado", não um erro de configuração.
         if (error.code === 400 || /unable to parse range/i.test(mensagemApi)) {
-            return { abaNaoEncontrada: true, mesEsperado: aba };
+            const abaAnterior = mesAnteriorA(abaAtual);
+            try {
+                cache = await garantirCacheImpressora(abaAnterior);
+                aba = abaAnterior;
+            } catch (error2) {
+                const mensagemApi2 = error2.response?.data?.error?.message || error2.message;
+                if (error2.code === 400 || /unable to parse range/i.test(mensagemApi2)) {
+                    return { abaNaoEncontrada: true, mesEsperado: abaAtual };
+                }
+                console.warn(`⚠️ Inventário de rede: falha ao ler a planilha MODELO IMPRESSORA (${mensagemApi2})`);
+                return null;
+            }
+        } else {
+            console.warn(`⚠️ Inventário de rede: falha ao ler a planilha MODELO IMPRESSORA (${mensagemApi})`);
+            return null;
         }
-        console.warn(`⚠️ Inventário de rede: falha ao ler a planilha MODELO IMPRESSORA (${mensagemApi})`);
-        return null;
     }
 
     const palavras = normalizar(termo).split(/\s+/).filter(Boolean);
@@ -306,7 +326,10 @@ async function buscarModeloImpressora(termo) {
             modToner: cache.lookupToner.get(normalizar(registro.equip)) ?? ''
         }));
 
-    return resultados.slice(0, 30);
+    const finalResultados = resultados.slice(0, 30);
+    finalResultados.abaUsada = aba;
+    finalResultados.abaDesatualizada = aba !== abaAtual;
+    return finalResultados;
 }
 
 // ==================== SOBREAVISO (quem está de plantão agora, uma aba por mês) ====================
