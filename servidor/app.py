@@ -52,7 +52,7 @@ if not AD_PASS:
 # ==================== CONFIGURAÇÕES DE TOKEN ====================
 TOKEN_EXPIRY_SECONDS = int(os.getenv('TOKEN_EXPIRY_SECONDS', 240))
 MAX_TOKEN_ATTEMPTS = int(os.getenv('MAX_TOKEN_ATTEMPTS', 3))
-BASE_URL = os.getenv('BASE_URL', 'https://bot-nti.resetsenhaglpi.qzz.io')
+BASE_URL = os.getenv('BASE_URL', 'https://bot-nti.resetsenhaglpi.dpdns.org')
 GLPI_URL = os.getenv('GLPI_URL', 'https://sistemasnti.isgh.org.br/glpi/')
 
 # ==================== ARMAZENAMENTO ====================

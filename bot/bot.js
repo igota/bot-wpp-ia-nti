@@ -2894,7 +2894,7 @@ async function processarMensagem(message) {
                     
                     // 🔥 CHAMA O SERVIDOR PARA GERAR UM TOKEN TEMPORÁRIO
                     try {
-                        const response = await fetch('https://bot-nti.resetsenhaglpi.qzz.io/api/gerar-token', {
+                        const response = await fetch('https://bot-nti.resetsenhaglpi.dpdns.org/api/gerar-token', {
                             method: 'POST',
                             headers: {
                                 'Content-Type': 'application/json'
