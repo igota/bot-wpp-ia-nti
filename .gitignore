@@ -55,6 +55,8 @@ bot/credentials/
 # Dados reais de funcionários (PII) - nunca versionar
 bot/json/dados_alteracao.json
 bot/json/emails_cache.json
+# Removido do histórico do git em 2026-09-04 (continha nomes e telefones reais)
+bot/json/sobreaviso_contatos.json
 
 # Arquivos temporários
 *.tmp
