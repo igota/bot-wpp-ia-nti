@@ -282,6 +282,13 @@ function gerarBuscas(nome) {
     let buscas = [];
     if (partes.length >= 2) buscas.push(`${partes[0]}*${partes[1]}`);
     if (partes.length >= 3) buscas.push(`${partes[0]}*${partes[1]}*${partes[2]}`);
+    // 🔥 Nomes com 5+ partes (ex: sobrenome de casada) têm partes do meio que
+    // não entravam em nenhum termo acima nem no último abaixo - se o AD só
+    // reconhecesse a pessoa por uma dessas partes do meio, a busca nunca
+    // trazia o candidato pro cálculo de score.
+    for (let i = 3; i < partes.length - 1; i++) {
+        buscas.push(`${partes[0]}*${partes[i]}`);
+    }
     if (partes.length >= 2) buscas.push(`${partes[0]}*${partes[partes.length - 1]}`);
     return buscas;
 }
