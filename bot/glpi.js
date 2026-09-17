@@ -293,42 +293,32 @@ function gerarBuscas(nome) {
     return buscas;
 }
 
-async function buscarLoginPorNome(nomeCompleto) {
-    // 🔥 VERIFICA SE AS CONFIGURAÇÕES FORAM CARREGADAS
-    if (!AD_SERVER || !DOMAIN || !AD_ADMIN_USER || !AD_ADMIN_PASS) {
-        console.error('❌ GLPI: Configurações do AD não carregadas');
-        return null;
-    }
-    
-    console.log(`🔍 Buscando login AD para: ${nomeCompleto}`);
-    const nomeNormalizado = normalizar(nomeCompleto);
-    const buscas = gerarBuscas(nomeNormalizado);
-    
+async function tentarBuscarLogin(nomeCompleto, buscas) {
     let melhorLogin = null;
     let melhorScore = 0;
-    
+
     for (const termo of buscas) {
         console.log(`🧠 Tentando busca: ${termo}`);
         const comando = `chcp 65001 > $null; dsquery * -limit 0 -filter "(&(objectClass=user)(name=*${termo}*))" -attr samAccountName name`;
-        
+
         try {
             const stdout = await runWithCredentials(comando, 30000);
             if (!stdout || stdout.trim() === '') continue;
-            
+
             const linhas = stdout.split('\n');
             for (const linha of linhas) {
                 const clean = linha.trim();
                 if (clean === '' || clean === 'samAccountName' || clean === 'name' || clean.includes('dsquery')) continue;
-                
+
                 const match = clean.match(/^([a-zA-Z0-9._-]+)\s+(.+)$/);
                 if (!match) continue;
-                
+
                 const login = match[1];
                 const nomeAD = match[2].trim();
                 const score = calcularScore(nomeCompleto, nomeAD);
-                
+
                 console.log(`📊 ${login} → ${nomeAD} (score: ${Math.round(score * 100)}%)`);
-                
+
                 if (score >= 0.8) return login;
                 if (score > melhorScore) {
                     melhorScore = score;
@@ -339,7 +329,7 @@ async function buscarLoginPorNome(nomeCompleto) {
             console.log(`❌ Erro: ${error.message}`);
         }
     }
-    
+
     // 🔥 SEM fallback de "melhor esforço" abaixo de 80%: nomes com primeiro nome + sobrenome
     // genérico (ex: "Junior") iguais mas partes do meio completamente diferentes já pontuaram até
     // 71% aqui - o suficiente pra um fallback de 65% devolver o login de uma pessoa TOTALMENTE
@@ -352,6 +342,31 @@ async function buscarLoginPorNome(nomeCompleto) {
         console.log(`❌ Nenhum usuário encontrado`);
     }
     return null;
+}
+
+async function buscarLoginPorNome(nomeCompleto) {
+    // 🔥 VERIFICA SE AS CONFIGURAÇÕES FORAM CARREGADAS
+    if (!AD_SERVER || !DOMAIN || !AD_ADMIN_USER || !AD_ADMIN_PASS) {
+        console.error('❌ GLPI: Configurações do AD não carregadas');
+        return null;
+    }
+
+    console.log(`🔍 Buscando login AD para: ${nomeCompleto}`);
+    const nomeNormalizado = normalizar(nomeCompleto);
+    const buscas = gerarBuscas(nomeNormalizado);
+
+    const login = await tentarBuscarLogin(nomeCompleto, buscas);
+    if (login) return login;
+
+    // 🔥 RETRY: a busca no AD usa "name=*x*y*" (contains, sem índice em name) - o DC às vezes
+    // devolve um resultado incompleto numa varredura assim sem erro visível, e a mesma busca
+    // logo em seguida acha o usuário normalmente (visto em produção: falhou às 08:59 e achou
+    // com 100% de score às 10:55 pro mesmo nome/CPF). Repetir a busca inteira uma vez após uma
+    // pequena pausa custa pouco e evita cair em "não encontrado" por causa dessa falha transitória
+    // do AD - o limiar de 80% continua o mesmo, não é um fallback mais permissivo.
+    console.log('🔁 Nenhum match na 1ª tentativa - repetindo busca no AD em 3s...');
+    await new Promise(resolve => setTimeout(resolve, 3000));
+    return await tentarBuscarLogin(nomeCompleto, buscas);
 }
 
 module.exports = {
