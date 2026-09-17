@@ -1549,7 +1549,18 @@ async function transferirUnidadeUsuario(from, valorBusca, tipoBusca = 'cpf') {
             throw new Error('Falha ao reabrir sessão após mudar unidade do agente');
         }
 
-        const resultadoAlvo2 = await buscarUsuarioVitae(from, valorBusca, tipoBusca);
+        let resultadoAlvo2 = await buscarUsuarioVitae(from, valorBusca, tipoBusca);
+        if (!resultadoAlvo2.encontrado && resultadoAlvo2.caso === 2) {
+            // 🔥 RETRY: logo após trocar a Entidade/Setor do agente e relogar, o VITAE às vezes
+            // ainda não convergiu a permissão da sessão nova (o alvo cai no CASO 2 - "não
+            // cadastrado na unidade" - mesmo com a unidade do agente já correta). Visto em
+            // produção: falha esporádica que some numa nova tentativa manual. Uma segunda busca
+            // após um pequeno delay evita restaurar o agente e devolver erro por causa dessa
+            // demora transitória de propagação.
+            console.log('🔁 Alvo caiu no CASO 2 logo após trocar a unidade do agente - tentando de novo em 3s...');
+            await sleep(3000);
+            resultadoAlvo2 = await buscarUsuarioVitae(from, valorBusca, tipoBusca);
+        }
         if (!resultadoAlvo2.encontrado) {
             throw new Error(resultadoAlvo2.erro || 'Não foi possível editar o usuário mesmo após igualar a unidade do agente');
         }
