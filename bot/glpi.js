@@ -361,12 +361,20 @@ async function buscarLoginPorNome(nomeCompleto) {
     // 🔥 RETRY: a busca no AD usa "name=*x*y*" (contains, sem índice em name) - o DC às vezes
     // devolve um resultado incompleto numa varredura assim sem erro visível, e a mesma busca
     // logo em seguida acha o usuário normalmente (visto em produção: falhou às 08:59 e achou
-    // com 100% de score às 10:55 pro mesmo nome/CPF). Repetir a busca inteira uma vez após uma
-    // pequena pausa custa pouco e evita cair em "não encontrado" por causa dessa falha transitória
-    // do AD - o limiar de 80% continua o mesmo, não é um fallback mais permissivo.
-    console.log('🔁 Nenhum match na 1ª tentativa - repetindo busca no AD em 3s...');
-    await new Promise(resolve => setTimeout(resolve, 3000));
-    return await tentarBuscarLogin(nomeCompleto, buscas);
+    // com 100% de score às 10:55 pro mesmo nome/CPF; outro caso real precisou de mais de 1 retry -
+    // 6 buscas malsucedidas em ~19s antes do usuário reiniciar a conversa e achar de primeira).
+    // Repetir a busca com delay progressivo só custa algo quando a 1ª rodada falhou por completo,
+    // e evita cair em "não encontrado" por causa dessa falha transitória do AD - o limiar de 80%
+    // continua o mesmo, não é um fallback mais permissivo.
+    const delaysRetry = [3000, 5000, 8000];
+    for (let tentativa = 0; tentativa < delaysRetry.length; tentativa++) {
+        console.log(`🔁 Nenhum match na ${tentativa + 1}ª tentativa - repetindo busca no AD em ${delaysRetry[tentativa] / 1000}s...`);
+        await new Promise(resolve => setTimeout(resolve, delaysRetry[tentativa]));
+        const loginRetry = await tentarBuscarLogin(nomeCompleto, buscas);
+        if (loginRetry) return loginRetry;
+    }
+
+    return null;
 }
 
 module.exports = {
