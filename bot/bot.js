@@ -944,7 +944,8 @@ async function processarMensagem(message) {
                     msg += `*${i + 1}.* 📍 *${r.sala || '(sem sala cadastrada)'}*\n` +
                         `   Equipamento: ${r.equipamento || '-'}\n` +
                         `   IP: ${r.ip}` +
-                        `${r.status ? `\n   Status: ${r.status}` : ''}\n\n`;
+                        `${r.status ? `\n   Status: ${r.status}` : ''}` +
+                        `${r.aba ? `\n   Aba: ${r.aba}` : ''}\n\n`;
                 });
                 msg += resultados.length === 1
                     ? `Digite *PING* para testar a conectividade desse IP, outro termo para nova busca, ou *@nti* para voltar ao menu.`

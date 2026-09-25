@@ -25,7 +25,7 @@ function setConfig(appConfig) {
     const sheets = appConfig?.googleSheets || {};
     AUTH_CONFIG = { keyPath: sheets.keyPath || null };
     FONTES = {
-        redeComFio: { sheetId: sheets.redeComFio?.sheetId || null, aba: sheets.redeComFio?.aba || null },
+        redeComFio: { sheetId: sheets.redeComFio?.sheetId || null, abas: sheets.redeComFio?.abas || [] },
         redeSemFio: { sheetId: sheets.redeSemFio?.sheetId || null, aba: sheets.redeSemFio?.aba || null },
         modeloImpressora: { sheetId: sheets.modeloImpressora?.sheetId || null },
         sobreaviso: { sheetId: sheets.sobreaviso?.sheetId || null },
@@ -105,16 +105,54 @@ function nesimoIndice(indices, chave, ocorrencia = 0) {
 
 // ==================== REDE COM FIO (IP de computador/impressora) ====================
 
-async function carregarRedeComFio() {
-    const { aba, sheetId } = FONTES.redeComFio;
-    const { linhas: linhasBrutas } = await lerAba(sheetId, aba);
-    const linhas = [];
+// Lê uma aba da planilha REDE COM FIO. As abas não têm o cabeçalho na mesma linha (ADM - 4 na
+// 1ª, CPD - 2 e NTI - 5 na 3ª, com linhas de título/observação acima), então localizamos a linha
+// cujo primeiro campo é "IP". Só as colunas A-D são lidas (IP | Computador/Impressora |
+// Sala ou Departamento | STATUS IP IMP) - a tabela lateral de servidores da CPD - 2 (colunas E-G)
+// fica de fora.
+async function carregarAbaRedeComFio(sheetId, aba) {
+    const { cabecalhos, linhas: resto } = await lerAba(sheetId, aba);
+    const valores = [cabecalhos, ...resto];
+    const idxCabecalho = valores.findIndex(l => normalizarCabecalho(l?.[0]) === 'IP');
+    if (idxCabecalho === -1) {
+        console.warn(`⚠️ Inventário de rede: aba "${aba}" da REDE COM FIO sem cabeçalho "IP" na coluna A - ignorada`);
+        return [];
+    }
+    const temStatus = normalizarCabecalho(valores[idxCabecalho][3]).startsWith('STATUS');
 
-    // Cabeçalho conhecido: IP | Computador/Impressora | Sala | STATUS IP IMP
-    for (const [ip, equipamento, sala, status] of linhasBrutas) {
+    const linhas = [];
+    for (const [ip, equipamento, sala, status] of valores.slice(idxCabecalho + 1)) {
         // Ignora linhas de IP sem equipamento/sala cadastrado (endereço livre no mapa de rede)
         if (!equipamento && !sala) continue;
-        linhas.push({ aba, ip: ip || '', equipamento: equipamento || '', sala: sala || '', status: status || '' });
+        linhas.push({
+            aba,
+            ip: ip || '',
+            equipamento: equipamento || '',
+            sala: sala || '',
+            status: (temStatus && status) || ''
+        });
+    }
+    return linhas;
+}
+
+// Carrega todas as abas configuradas em paralelo. Se uma aba falhar, as outras continuam valendo
+// (a falha vai pro log); só lança erro se nenhuma aba puder ser lida.
+async function carregarRedeComFio() {
+    const { abas, sheetId } = FONTES.redeComFio;
+    const resultados = await Promise.allSettled(abas.map(aba => carregarAbaRedeComFio(sheetId, aba)));
+
+    const linhas = [];
+    resultados.forEach((r, i) => {
+        if (r.status === 'fulfilled') {
+            linhas.push(...r.value);
+        } else {
+            const erro = r.reason;
+            console.warn(`⚠️ Inventário de rede: falha ao ler a aba "${abas[i]}" da REDE COM FIO (${erro?.response?.data?.error?.message || erro?.message})`);
+        }
+    });
+
+    if (resultados.every(r => r.status === 'rejected')) {
+        throw resultados[0]?.reason || new Error('nenhuma aba configurada');
     }
     return linhas;
 }

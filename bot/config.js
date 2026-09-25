@@ -76,7 +76,7 @@ module.exports = {
             : null,
         redeComFio: {
             sheetId: process.env.GOOGLE_SHEETS_ID,
-            aba: 'ADM - 4'
+            abas: ['ADM - 4', 'CPD - 2', 'NTI - 5']
         },
         redeSemFio: {
             sheetId: process.env.GOOGLE_SHEETS_ID_WIFI,
