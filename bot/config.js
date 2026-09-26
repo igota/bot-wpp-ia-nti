@@ -60,10 +60,17 @@ module.exports = {
         args: (process.env.PUPPETEER_ARGS || '--no-sandbox,--disable-setuid-sandbox').split(',')
     },
 
-    // IA (protótipo - Google Gemini free tier)
+    // IA - OpenAI (pago) como provedor principal, Google Gemini (free tier) como reserva quando a
+    // OpenAI falha. Qualquer um dos dois pode ficar sem chave; sem nenhuma, a IA fica desativada.
     ia: {
-        apiKey: process.env.GEMINI_API_KEY,
-        modelo: process.env.GEMINI_MODEL || 'gemini-3.5-flash-lite',
+        openai: {
+            apiKey: process.env.OPENAI_API_KEY,
+            modelo: process.env.OPENAI_MODEL || 'gpt-5.4-mini'
+        },
+        gemini: {
+            apiKey: process.env.GEMINI_API_KEY,
+            modelo: process.env.GEMINI_MODEL || 'gemini-3.5-flash-lite'
+        },
         ativo: process.env.IA_ATIVA !== 'false'
     },
 

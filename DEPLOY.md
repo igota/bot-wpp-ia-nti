@@ -53,7 +53,7 @@ Nenhum dos dois é versionado (ambos gitignored) — precisam ser criados manual
 | `VITAE_URL`, `VITAE_USERNAME`, `VITAE_PASSWORD` | Login no VITAE |
 | `TIMEOUT_INATIVIDADE_MINUTES`, `MAX_RECONNECT_ATTEMPTS`, `SESSION_CLEANUP_INTERVAL_MINUTES` | Comportamento de sessão (opcionais, têm default) |
 | `PUPPETEER_HEADLESS`, `PUPPETEER_EXECUTABLE_PATH`, `PUPPETEER_ARGS` | Configuração do navegador headless (VITAE) |
-| `GEMINI_API_KEY`, `GEMINI_MODEL`, `IA_ATIVA` | Camada opcional de IA — pode deixar em branco, o bot funciona sem ela |
+| `OPENAI_API_KEY`, `OPENAI_MODEL`, `GEMINI_API_KEY`, `GEMINI_MODEL`, `IA_ATIVA` | Camada opcional de IA (OpenAI principal, Gemini reserva) — pode deixar em branco, o bot funciona sem ela |
 | `GOOGLE_SHEETS_ID`, `GOOGLE_SERVICE_ACCOUNT_KEY_PATH` | Planilha de inventário de rede (menu oculto `@nti`/`@nac`) |
 | `NUMEROS_NTI`, `NUMEROS_NAC` | Allowlist de operadores do menu oculto `@nti`/`@nac` — JIDs do WhatsApp separados por vírgula (ex: `NUMEROS_NTI=1111@lid,2222@lid`). Sem isso, ninguém acessa o menu oculto neste servidor. |
 

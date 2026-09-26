@@ -1,13 +1,15 @@
-// ia.js - Camada de IA (Google Gemini, free tier) para deixar as respostas do bot mais naturais.
-// Protótipo: se a IA falhar, estiver sem chave ou demorar demais, o bot cai no comportamento
-// padrão (mensagens fixas) — a IA nunca é obrigatória para o fluxo funcionar.
+// ia.js - Camada de IA para deixar as respostas do bot mais naturais. Provedor principal: OpenAI
+// (pago); reserva: Google Gemini (free tier), usado só quando a OpenAI falha/demora.
+// Se a IA falhar, estiver sem chave ou demorar demais, o bot cai no comportamento padrão
+// (mensagens fixas) — a IA nunca é obrigatória para o fluxo funcionar.
 
 const axios = require('axios');
 const fs = require('fs');
 const path = require('path');
 
-let IA_CONFIG = null;
+let IA_CONFIG = null; // { ativo, provedores: [{ nome, apiKey, modelo }, ...] } em ordem de prioridade
 
+const OPENAI_URL = 'https://api.openai.com/v1/chat/completions';
 const GEMINI_BASE_URL = 'https://generativelanguage.googleapis.com/v1beta/models';
 
 // Base de conhecimento do NTI (regras/fluxos internos), carregada uma única vez em memória.
@@ -119,75 +121,160 @@ function selecionarSecoesRelevantes(textoConsulta) {
 }
 
 function setConfig(appConfig) {
-    const apiKey = appConfig?.ia?.apiKey || null;
+    const ia = appConfig?.ia || {};
+    const provedores = [
+        { nome: 'OpenAI', apiKey: ia.openai?.apiKey || null, modelo: ia.openai?.modelo || 'gpt-5.4-mini' },
+        { nome: 'Gemini', apiKey: ia.gemini?.apiKey || null, modelo: ia.gemini?.modelo || 'gemini-3.5-flash-lite' }
+    ].filter(p => p.apiKey);
+
     IA_CONFIG = {
-        apiKey,
-        modelo: appConfig?.ia?.modelo || 'gemini-2.0-flash',
-        ativo: Boolean(apiKey) && appConfig?.ia?.ativo !== false
+        provedores,
+        ativo: provedores.length > 0 && ia.ativo !== false
     };
 
     console.log(IA_CONFIG.ativo
-        ? `✅ IA: Gemini (${IA_CONFIG.modelo}) configurado`
-        : '⚠️ IA: desativada (sem GEMINI_API_KEY no .env) - bot segue no modo padrão');
+        ? `✅ IA: ${provedores.map((p, i) => `${p.nome} (${p.modelo})${i === 0 ? '' : ' como reserva'}`).join(', ')} configurado`
+        : '⚠️ IA: desativada (sem OPENAI_API_KEY/GEMINI_API_KEY no .env) - bot segue no modo padrão');
 
     if (IA_CONFIG.ativo) carregarBaseConhecimento();
 }
 
-// `tentativas` > 1 refaz a chamada quando o motivo da falha for passageiro (timeout ou 503 -
-// modelo sobrecarregado no free tier) - erros de outra natureza (ex: 400, chave inválida) não
-// tendem a se resolver numa segunda tentativa, então não vale gastar mais tempo repetindo.
-async function chamarGemini(prompt, { timeoutMs = 6000, temperature = 0.4, tentativas = 1, thinkingBudget = null } = {}) {
-    if (!IA_CONFIG?.ativo) return null;
+// Cada requisicao* faz UMA chamada ao provedor e devolve { texto, motivoCorte }. `motivoCorte`
+// preenchido = resposta incompleta (cortada por limite de tokens, filtro de conteúdo, etc.).
+// Erros de rede/HTTP são lançados pra chamarProvedor() decidir se vale tentar de novo.
 
+async function requisicaoOpenAI(provedor, prompt, { timeoutMs, temperature }) {
+    const corpo = {
+        model: provedor.modelo,
+        messages: [{ role: 'user', content: prompt }],
+        temperature,
+        // Generoso de propósito - o guard de finish_reason é quem garante que nunca sai uma
+        // resposta cortada.
+        max_completion_tokens: 2048
+    };
+    // Modelos gpt-5.x "pensam" antes de responder por padrão, o que só adiciona latência nessas
+    // tarefas curtas. 'none' desliga isso (outros modelos, ex: gpt-4.1, rejeitam o parâmetro).
+    if (/^gpt-5\.\d/.test(provedor.modelo)) corpo.reasoning_effort = 'none';
+
+    const resposta = await axios.post(OPENAI_URL, corpo, {
+        headers: { Authorization: `Bearer ${provedor.apiKey}` },
+        timeout: timeoutMs
+    });
+
+    const escolha = resposta.data?.choices?.[0];
+    return {
+        texto: escolha?.message?.content || '',
+        motivoCorte: escolha?.finish_reason && escolha.finish_reason !== 'stop' ? escolha.finish_reason : null
+    };
+}
+
+async function requisicaoGemini(provedor, prompt, { timeoutMs, temperature, thinkingBudget }) {
+    const url = `${GEMINI_BASE_URL}/${provedor.modelo}:generateContent?key=${provedor.apiKey}`;
+    const generationConfig = {
+        temperature,
+        // Modelos com "raciocínio" (thinking) gastam parte do maxOutputTokens pensando
+        // antes de gerar o texto visível - por isso o valor generoso aqui. O guard de
+        // finishReason é quem garante que nunca sai uma resposta cortada.
+        maxOutputTokens: 2048
+    };
+    // thinkingBudget baixo evita que o modelo "pense" antes de responder (medido: ~10s de
+    // thinking até pra um prompt trivial, sem thinkingConfig). Não pode ser 0 (a API rejeita
+    // com 400 nesse modelo) - 1 é o mínimo aceito e já derruba a latência pra menos de 1s.
+    if (thinkingBudget !== null) generationConfig.thinkingConfig = { thinkingBudget };
+
+    const resposta = await axios.post(url, {
+        contents: [{ parts: [{ text: prompt }] }],
+        generationConfig
+    }, { timeout: timeoutMs });
+
+    const candidato = resposta.data?.candidates?.[0];
+    const finishReason = candidato?.finishReason;
+    return {
+        texto: candidato?.content?.parts?.map(p => p.text || '').join('') || '',
+        motivoCorte: finishReason && finishReason !== 'STOP' ? finishReason : null
+    };
+}
+
+const REQUISICAO_POR_PROVEDOR = { OpenAI: requisicaoOpenAI, Gemini: requisicaoGemini };
+
+// `tentativas` > 1 refaz a chamada quando o motivo da falha for passageiro (timeout, 5xx - modelo
+// sobrecarregado - ou 429 de limite por minuto) - erros de outra natureza (ex: 400, chave
+// inválida, crédito esgotado) não tendem a se resolver numa segunda tentativa, então não vale
+// gastar mais tempo repetindo. Retorna o texto ou null.
+//
+// Falhas passageiras que voltam RÁPIDO (erro HTTP, não timeout) ganham até
+// RETENTATIVAS_RAPIDAS_MAX tentativas extras, com uma pausa antes - fora do limite de `tentativas`,
+// já que custam ~1s cada em vez de um timeout inteiro. Motivo: a OpenAI às vezes devolve
+// "503 - Unable to verify model access right now" em ~200ms, de forma intermitente (visto em
+// 25/09/2026, ~40% das chamadas logo após criar a chave), e repetir na hora sem pausa pegava a
+// mesma instabilidade de novo.
+const RETENTATIVAS_RAPIDAS_MAX = 2;
+const PAUSA_RETENTATIVA_RAPIDA_MS = 1000;
+const esperar = (ms) => new Promise(resolve => setTimeout(resolve, ms));
+
+async function chamarProvedor(provedor, prompt, opcoes, tentativas) {
+    let retentativasRapidas = 0;
     for (let tentativa = 1; tentativa <= tentativas; tentativa++) {
         try {
-            const url = `${GEMINI_BASE_URL}/${IA_CONFIG.modelo}:generateContent?key=${IA_CONFIG.apiKey}`;
-            const generationConfig = {
-                temperature,
-                // Modelos com "raciocínio" (thinking) gastam parte do maxOutputTokens pensando
-                // antes de gerar o texto visível - por isso o valor generoso aqui. O guard de
-                // finishReason abaixo é quem garante que nunca sai uma resposta cortada.
-                maxOutputTokens: 2048
-            };
-            // thinkingBudget baixo evita que o modelo "pense" antes de responder (medido: ~10s de
-            // thinking até pra um prompt trivial, sem thinkingConfig). Não pode ser 0 (a API rejeita
-            // com 400 nesse modelo) - 1 é o mínimo aceito e já derruba a latência pra menos de 1s.
-            if (thinkingBudget !== null) generationConfig.thinkingConfig = { thinkingBudget };
+            const { texto, motivoCorte } = await REQUISICAO_POR_PROVEDOR[provedor.nome](provedor, prompt, opcoes);
 
-            const resposta = await axios.post(url, {
-                contents: [{ parts: [{ text: prompt }] }],
-                generationConfig
-            }, { timeout: timeoutMs });
-
-            const candidato = resposta.data?.candidates?.[0];
-            const finishReason = candidato?.finishReason;
-
-            // Só aceita resposta completa (STOP). Qualquer corte (MAX_TOKENS, SAFETY, etc.)
-            // é tratado como falha - é mais seguro cair no texto padrão do que mandar algo cortado.
-            if (finishReason && finishReason !== 'STOP') {
-                console.warn(`⚠️ IA: resposta incompleta do Gemini (finishReason=${finishReason}) - usando fallback padrão`);
+            // Só aceita resposta completa. Qualquer corte é tratado como falha - é mais seguro
+            // cair no texto padrão do que mandar algo cortado.
+            if (motivoCorte) {
+                console.warn(`⚠️ IA: resposta incompleta do ${provedor.nome} (motivo=${motivoCorte})`);
                 return null;
             }
-
-            const texto = candidato?.content?.parts?.map(p => p.text || '').join('');
-            // O prompt pede negrito no formato do WhatsApp (*asterisco simples*), mas o modelo às vezes
-            // ignora e usa **negrito duplo** (Markdown) mesmo assim - normaliza aqui em vez de confiar
-            // 100% na instrução, pra nunca mandar asterisco duplo literal pro usuário.
-            return texto ? texto.trim().replace(/\*\*(.+?)\*\*/g, '*$1*') : null;
+            return texto.trim() || null;
         } catch (error) {
             const status = error.response?.status;
-            const éPassageiro = status === 503 || error.code === 'ECONNABORTED' || /timeout/i.test(error.message);
+            const codigoErro = error.response?.data?.error?.code;
+            const éTimeout = error.code === 'ECONNABORTED' || /timeout/i.test(error.message);
+            const éPassageiro = éTimeout || status >= 500 ||
+                (status === 429 && codigoErro !== 'insufficient_quota');
+            const detalhe = [status, error.response?.data?.error?.message || error.message].filter(Boolean).join(' - ');
 
-            if (éPassageiro && tentativa < tentativas) {
-                console.warn(`⚠️ IA: falha passageira ao chamar Gemini (${status || error.message}) - tentativa ${tentativa}/${tentativas}, tentando de novo...`);
+            if (éPassageiro && !éTimeout && retentativasRapidas < RETENTATIVAS_RAPIDAS_MAX) {
+                retentativasRapidas++;
+                console.warn(`⚠️ IA: falha passageira ao chamar ${provedor.nome} (${detalhe}) - repetindo em ${PAUSA_RETENTATIVA_RAPIDA_MS / 1000}s (extra ${retentativasRapidas}/${RETENTATIVAS_RAPIDAS_MAX})...`);
+                await esperar(PAUSA_RETENTATIVA_RAPIDA_MS);
+                tentativa--; // não consome uma das `tentativas` normais
                 continue;
             }
 
-            console.warn(`⚠️ IA: falha ao chamar Gemini (${status || error.message}) - usando fallback padrão`);
+            if (éPassageiro && tentativa < tentativas) {
+                console.warn(`⚠️ IA: falha passageira ao chamar ${provedor.nome} (${detalhe}) - tentativa ${tentativa}/${tentativas}, tentando de novo...`);
+                continue;
+            }
+
+            console.warn(`⚠️ IA: falha ao chamar ${provedor.nome} (${detalhe})`);
             return null;
         }
     }
+    return null;
+}
 
+// Tenta os provedores em ordem de prioridade (OpenAI, depois Gemini). O provedor principal usa
+// todas as `tentativas`; a reserva só tenta uma vez, pra não somar ainda mais espera ao
+// funcionário (ele já esperou as tentativas do principal). Retorna null se todos falharem -
+// quem chama cai no texto padrão.
+async function chamarIA(prompt, { timeoutMs = 6000, temperature = 0.4, tentativas = 1, thinkingBudget = null } = {}) {
+    if (!IA_CONFIG?.ativo) return null;
+
+    const { provedores } = IA_CONFIG;
+    for (const [i, provedor] of provedores.entries()) {
+        const texto = await chamarProvedor(provedor, prompt, { timeoutMs, temperature, thinkingBudget }, i === 0 ? tentativas : 1);
+        if (texto) {
+            // O prompt pede negrito no formato do WhatsApp (*asterisco simples*), mas o modelo às vezes
+            // ignora e usa **negrito duplo** (Markdown) mesmo assim - normaliza aqui em vez de confiar
+            // 100% na instrução, pra nunca mandar asterisco duplo literal pro usuário.
+            return texto.replace(/\*\*(.+?)\*\*/g, '*$1*');
+        }
+        if (i < provedores.length - 1) {
+            console.warn(`⚠️ IA: tentando o provedor reserva (${provedores[i + 1].nome})...`);
+        }
+    }
+
+    console.warn('⚠️ IA: nenhum provedor respondeu - usando fallback padrão');
     return null;
 }
 
@@ -233,7 +320,7 @@ async function interpretarOpcaoMenu(mensagemUsuario) {
         'cumprimentos/saudações como oi, olá, bom dia, tudo bem?, etc. sem pedir nada específico). ' +
         'Não escreva mais nada além do token.';
 
-    const resposta = await chamarGemini(prompt, { timeoutMs: 6000, temperature: 0, tentativas: 2, thinkingBudget: 1 });
+    const resposta = await chamarIA(prompt, { timeoutMs: 6000, temperature: 0, tentativas: 2, thinkingBudget: 1 });
     if (!resposta) return null;
 
     const token = resposta.trim().split(/\s+/)[0].toUpperCase();
@@ -253,7 +340,7 @@ async function humanizarMensagem(mensagemBase) {
         'mensagem final, sem comentários sobre a tarefa.\n\n' +
         `Mensagem original:\n"""\n${mensagemBase}\n"""`;
 
-    const resposta = await chamarGemini(prompt, { timeoutMs: 6000, temperature: 0.5, thinkingBudget: 1 });
+    const resposta = await chamarIA(prompt, { timeoutMs: 6000, temperature: 0.5, thinkingBudget: 1 });
     return resposta || mensagemBase;
 }
 
@@ -295,7 +382,7 @@ async function responderNatural({ evento, fatos = {}, mensagemUsuario = '', hist
         'isso é Markdown e não funciona no WhatsApp) e emojis com moderação. Responda só com a mensagem ' +
         'final, sem comentários sobre a tarefa.';
 
-    const resposta = await chamarGemini(prompt, { timeoutMs: 6000, temperature: 0.8, thinkingBudget: 1, tentativas: 2 });
+    const resposta = await chamarIA(prompt, { timeoutMs: 6000, temperature: 0.8, thinkingBudget: 1, tentativas: 2 });
     return resposta || textoFallback;
 }
 
@@ -382,7 +469,7 @@ async function responderDuvidaNTI(mensagemUsuario, { historico = [], textoFallba
         'Pode usar negrito no formato do WhatsApp (um único asterisco de cada lado, ex: *assim*; NUNCA dois ' +
         'asteriscos) e emojis com moderação. Responda só com a mensagem final, sem comentários sobre a tarefa.';
 
-    const resposta = await chamarGemini(prompt, { timeoutMs: 7000, temperature: 0.3, thinkingBudget: 1, tentativas: 2 });
+    const resposta = await chamarIA(prompt, { timeoutMs: 7000, temperature: 0.3, thinkingBudget: 1, tentativas: 2 });
     return resposta || fallbackPadrao;
 }
 

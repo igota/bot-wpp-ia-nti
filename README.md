@@ -26,7 +26,7 @@ Um funcionário manda mensagem pro número do bot no WhatsApp e, pelo menu, rese
 
 Além do fluxo de autoatendimento, existe um **menu oculto para operadores do NTI/NAC** (`@nti` / `@nac`, liberado só para números autorizados) com três opções: **transferência de usuários** entre unidades no VITAE (busca por login/nome/CPF e depois transfere a unidade), busca de IP de equipamento numa planilha de inventário de rede, e ping de diagnóstico.
 
-Há também uma camada opcional de IA (Google Gemini, free tier) que deixa as respostas do bot mais naturais e responde dúvidas gerais consultando uma base de conhecimento do NTI (`base_conhecimento_nti.md`). É só um verniz: se a IA falhar, não tiver chave configurada ou demorar demais, o bot cai automaticamente no comportamento padrão de mensagens fixas — nunca é obrigatória para o fluxo funcionar.
+Há também uma camada opcional de IA (OpenAI, com Google Gemini free tier como reserva) que deixa as respostas do bot mais naturais e responde dúvidas gerais consultando uma base de conhecimento do NTI (`base_conhecimento_nti.md`). É só um verniz: se a IA falhar, não tiver chave configurada ou demorar demais, o bot cai automaticamente no comportamento padrão de mensagens fixas — nunca é obrigatória para o fluxo funcionar.
 
 ## Arquitetura
 
@@ -43,7 +43,7 @@ Dois comandos são interceptados globalmente antes da lógica de step: `MENU` (r
 - **`bot/glpi.js`** — AD/GLPI. Reseta senha e busca contas via `powershell.exe -EncodedCommand` rodando `Invoke-Command` contra o servidor AD, com credencial de admin do domínio. Faz busca de login por nome com correspondência aproximada (wildcard/similaridade) sobre saída de `dsquery`. Lista de cargos vem de `bot/json/cargos.json`.
 - **`bot/conecta.js`** — cliente REST puro (axios) contra a API do CONECTA: login, busca por CPF/nome, reset de senha, tudo via HTTP.
 - **`bot/vitae.js`** — híbrido: login via HTTP puro (axios + cookie jar), e o resto do fluxo (busca, troca de e-mail) via Puppeteer + plugin stealth, porque o restante do sistema não tem API. Sessões de navegador por usuário ficam num `Map` em memória.
-- **`bot/ia.js`** — camada opcional de IA (Gemini) descrita acima.
+- **`bot/ia.js`** — camada opcional de IA (OpenAI + Gemini de reserva) descrita acima.
 - **`bot/inventarioRede.js`** — busca em 3 planilhas do Google Sheets (só leitura, via conta de serviço), usada só no menu oculto `@nti` (opção 2 - PLANILHAS): REDE COM FIO (IP de computador/impressora), REDE SEM FIO (dispositivo por Nome/MAC) e MODELO IMPRESSORA (contador/toner por setor, uma aba por mês — sempre lê a aba do mês atual). Busca 100% determinística — sem IA envolvida.
 - **`bot/ping.js`** — ping de diagnóstico de rede, também restrito ao menu oculto.
 
@@ -61,7 +61,7 @@ bot/                  bot de WhatsApp (Node.js)
   glpi.js             integração GLPI/AD (reset via PowerShell remoto)
   conecta.js          integração CONECTA (API REST)
   vitae.js            integração VITAE (HTTP + Puppeteer)
-  ia.js               camada opcional de IA (Gemini)
+  ia.js               camada opcional de IA (OpenAI + Gemini)
   inventarioRede.js   busca de IP (menu oculto @nti/@nac)
   ping.js             ping de diagnóstico (menu oculto)
   config.js           carrega bot/.env
@@ -104,7 +104,7 @@ Variáveis lidas por `bot/config.js`:
 | `VITAE_URL`, `VITAE_USERNAME`, `VITAE_PASSWORD` | Login no VITAE |
 | `TIMEOUT_INATIVIDADE_MINUTES`, `MAX_RECONNECT_ATTEMPTS`, `SESSION_CLEANUP_INTERVAL_MINUTES` | Comportamento de sessão do bot |
 | `PUPPETEER_HEADLESS`, `PUPPETEER_EXECUTABLE_PATH`, `PUPPETEER_ARGS` | Configuração do navegador headless (VITAE) |
-| `GEMINI_API_KEY`, `GEMINI_MODEL`, `IA_ATIVA` | Camada opcional de IA — sem `GEMINI_API_KEY`, o bot roda normalmente no modo padrão |
+| `OPENAI_API_KEY`, `OPENAI_MODEL`, `GEMINI_API_KEY`, `GEMINI_MODEL`, `IA_ATIVA` | Camada opcional de IA — OpenAI é o provedor principal (padrão `gpt-5.4-mini`) e o Gemini é usado como reserva quando ela falha; qualquer um pode ficar sem chave. Sem nenhuma das duas chaves, o bot roda normalmente no modo padrão |
 | `GOOGLE_SHEETS_ID`, `GOOGLE_SHEETS_ID_WIFI`, `GOOGLE_SHEETS_ID_IMPRESSORA`, `GOOGLE_SERVICE_ACCOUNT_KEY_PATH` | As 3 planilhas do menu oculto `@nti` → PLANILHAS (REDE COM FIO, REDE SEM FIO, MODELO IMPRESSORA) — todas lidas pela mesma chave de conta de serviço do Google Cloud em `bot/credentials/` (gitignored); a planilha precisa estar compartilhada (Leitor) com o e-mail dessa conta de serviço |
 | `NUMEROS_NTI`, `NUMEROS_NAC` | Allowlist de operadores do menu oculto `@nti`/`@nac` — JIDs do WhatsApp separados por vírgula |
 
